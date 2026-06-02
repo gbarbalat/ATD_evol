@@ -1,1 +1,8 @@
-
+take outpatient file for psychiatry in 2020 (oravue -> T_RIP20R3A)  
+take only FINESS juridique of Le Vinatier (ETA_NUM_TWO==690000088)  
+table for FINESS geographique (ETA_NUM_EPMSI)
+table for forme d'activite (FOR_ACT)  
+table for nature de l'acte (ACT_NAT)  
+table pour lieu de l'acte (ACT_LIEU)
+table pour code postal (COD_POST)
+table for unite medicale (NUM_UM)
