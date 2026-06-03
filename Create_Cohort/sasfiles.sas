@@ -29,7 +29,8 @@ proc sql;
     from oravue.ER_CAM_F
     where CAM_PRS_IDE = 'QEQK004'
       and FLX_DIS_DTD is not missing
-      and year(FLX_DIS_DTD) between 2011 and 2020; 
+      /* and year(FLX_DIS_DTD) between 2011 and 2020; */
+	  and FLX_DIS_DTD between '01Jan2020'd and '31Dec2020'd;
 quit;
 
 
@@ -101,8 +102,15 @@ quit;
 proc sql;
     create table work.compil_conso_joined as
     select 
-        /* Pull all variables from your consolidated table */
-        conso.*
+        /* 1. All variables from the consolidated dataset */
+        conso.*,
+        
+        /* 2. Target columns from work.temp_cohort not in conso */
+        coh.IMB_ALD_NUM,
+        coh.IMB_ALD_DTD,
+        
+        /* 3. Target column from work.temp_filtered_cam not in conso */
+        cam.CAM_PRS_IDE
         
     from work.compil_conso as conso
     
