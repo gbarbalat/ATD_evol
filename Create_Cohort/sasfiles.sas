@@ -29,7 +29,7 @@ proc sql;
     from oravue.ER_CAM_F
     where CAM_PRS_IDE = 'QEQK004'
       and FLX_DIS_DTD is not missing
-      and year(FLX_DIS_DTD) between 2011 and 2020;
+      and year(FLX_DIS_DTD) between 2011 and 2020; 
 quit;
 
 
@@ -98,4 +98,29 @@ quit;
 
 
 /* STEP4 join the created databases */
-
+proc sql;
+    create table work.compil_conso_joined as
+    select 
+        /* Pull all variables from your consolidated table */
+        conso.*
+        
+    from work.compil_conso as conso
+    
+    /* Condition 1: Match on Patient IDs from temp_cohort */
+    inner join work.temp_cohort as coh
+        on  conso.BEN_NIR_PSA = coh.BEN_NIR_PSA
+        and conso.BEN_RNG_GEM = coh.BEN_RNG_GEM
+        
+    /* Condition 2: Match on the 9 joining keys from temp_filtered_cam */
+    inner join work.temp_filtered_cam as cam
+        on  conso.FLX_DIS_DTD = cam.FLX_DIS_DTD
+        and conso.FLX_TRT_DTD = cam.FLX_TRT_DTD
+        and conso.FLX_EMT_TYP = cam.FLX_EMT_TYP
+        and conso.FLX_EMT_NUM = cam.FLX_EMT_NUM
+        and conso.FLX_EMT_ORD = cam.FLX_EMT_ORD
+        and conso.ORG_CLE_NUM = cam.ORG_CLE_NUM
+        and conso.DCT_ORD_NUM = cam.DCT_ORD_NUM
+        and conso.PRS_ORD_NUM = cam.PRS_ORD_NUM
+        and conso.REM_TYP_AFF = cam.REM_TYP_AFF
+    ;
+quit;
