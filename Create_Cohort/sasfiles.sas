@@ -1,134 +1,58 @@
-/* STEP 1 select population based on ALD and date of ALD in IR_IMB_R */
 proc sql;
-    create table work.temp_cohort as
-    select BEN_NIR_PSA, BEN_RNG_GEM, IMB_ALD_NUM, IMB_ALD_DTD
-    from oravue.IR_IMB_R
-    where IMB_ALD_NUM in (23)
-      and IMB_ALD_DTD is not missing 
-      and IMB_ALD_DTD > 0 
-      and year(IMB_ALD_DTD) = 2001;
-      
-    /* Build an index to make the next lookup nearly instantaneous */
-    create index patient_idx on work.temp_cohort(BEN_NIR_PSA, BEN_RNG_GEM);
-quit;
-
-/* STEP2 filter ER_PRS_F */
-/************************************************************************************************************************/
-/** The Magic Loop	:)																									*/
-/* Programme de boucle automatique permettant de mettre ï¿½ jour et extraire les donnï¿½es Mois par Mois en Flux			*/
-/* Application Extraction des actes  de Tï¿½lï¿½consultation en Ville des mï¿½decins (PS Libï¿½raux et Centres de santï¿½)		*/
-/* On rï¿½cupï¿½re au final une Table COMPIL_CONSO dans la Work																*/ 
-/* La requï¿½te fonctionne  sur tous les profils avec Date de soins														*/
-/* Des questions ? Contact : Jï¿½rï¿½me BROCCA Ministï¿½re/DNUM/SCN/SI Mutualisï¿½s des ARS : jerome.brocca@ars.sante.fr 		*/
-/************************************************************************************************************************/
-options LOCALE=FRENCH ;
-option mprint symbolgen;
-
-/** Etape 1 : On fait sa requï¿½te  **/
-/*Extraction des Donnï¿½es sur 1 Mois de Flux avec sa propre requï¿½te */
-
-/**Etape 2 : MACRO MA_REQUETE***/
-/** On remplace et modifie sa propre  requï¿½te selon les 3 consignes suivantes : */
-/* 1- la Table ER_PRS_F Avec l'Alias T1 */
-/* 2- LA TABLE gï¿½nï¿½rï¿½e par la requete est WORK.CONSO */ 
-/* 3-  On conserve les 2 lignes indiquï¿½es pour les conditions sur les dates de soins et de Flux **/
-%MACRO MA_REQUETE;
-
-/**On intègre Ci-dessous SA REQUETE (PROC SQL) en tenant compte des consignes précédentes **/
-proc sql;
-    create table work.conso as
-    select  
-        t1.BEN_NIR_PSA,
-        t1.BEN_RNG_GEM,
-        t1.BEN_NAI_ANN,
-        t1.FLX_DIS_DTD,
-        t1.FLX_TRT_DTD,
-        t1.FLX_EMT_TYP,
-        t1.FLX_EMT_NUM,
-        t1.FLX_EMT_ORD,
-        t1.ORG_CLE_NUM,
-        t1.DCT_ORD_NUM,
-        t1.PRS_ORD_NUM,
-        t1.REM_TYP_AFF
-    from oravue.ER_PRS_F t1
-    where t1.FLX_DIS_DTD = &DFLUX 
-      and t1.EXE_SOI_DTD between &DEBSOIN and &FINSOIN 
-	  and t1.FLX_EMT_TYP = 1 AND t1.FLX_EMT_NUM = 36;
-quit;
-
-%MEND MA_REQUETE;
-
-
-/**Etape 3 : PARAMETRES EN ENTREE***/
-
-%LET BORNE = 1; /* 1 : Oui 0 : Non.  Indique si on a une Date de fin soins en paramï¿½tre de la requete. Si 0 La date de fin de soins sera celle du derniï¿½r  mois dispo**/
-
-%LET DEBUT = 20200101; /*Date de Dï¿½but de Soins sous la forme AAAAMMJJ **/
-
-%LET FIN = 20201231; /*Date de Fin de Soins sous la forme AAAAMMJJ. Modification du Paramï¿½tre non nï¿½cï¿½ssaire si BORNE=0 **/
-
-%LET NBFLUX = 6; /* Indique le Nombre de mois de Flux prix en compte aprï¿½s Date de Fin de Soins  Modification du Paramï¿½tre non nï¿½cï¿½ssaire si si BORNE=0 **/
-
-/**FIN DES PARAMETRES **/
-
-/** MACRO MAGIC_LOOP **/
-/** ...Et On appelle  MAGIC_LOOP **/
-%m_magic_loop ;
-
-
-/* STEP3 filter ER_CAM_F */
-proc sql;
-    create table work.temp_filtered_cam as
+    create table treatment_cohort as
     select 
-        CAM_PRS_IDE,
-        FLX_DIS_DTD,
-        FLX_TRT_DTD,
-        FLX_EMT_TYP,
-        FLX_EMT_NUM,
-        FLX_EMT_ORD,
-        ORG_CLE_NUM,
-        DCT_ORD_NUM,
-        PRS_ORD_NUM,
-        REM_TYP_AFF
-    from oravue.ER_CAM_F
-    where CAM_PRS_IDE = 'QEQK004'
-      and FLX_DIS_DTD is not missing
-      /* and year(FLX_DIS_DTD) between 2011 and 2020; */
-	  and FLX_DIS_DTD between '01Feb2020'd and '31Jul2021'd;
-quit;
-
-
-/* STEP4 join the created databases */
-proc sql;
-    create table work.compil_conso_joined as
-    select 
-        /* 1. All variables from the consolidated dataset */
-        conso.*,
+        /* Variables from ER_PRS_F */
+        prs.EXE_SOI_DTD,
+		prs.FLX_DIS_DTD,
+        prs.BEN_SEX_COD,
+        prs.BEN_AMA_COD,
+        prs.BEN_DCD_DTE,
+        prs.BEN_NIR_PSA,
+        prs.BEN_RNG_GEM,
+		prs.BEN_RES_DPT,
+        prs.BEN_RES_COM,
+        prs.PRE_PRE_DTD,
+        prs.PRS_GRS_DTD,
         
-        /* 2. Target columns from work.temp_cohort not in conso */
-        coh.IMB_ALD_NUM,
-        coh.IMB_ALD_DTD,
+            
+        /* Variables from ER_PHA_F */
+        pha.PHA_PRS_C13,
+        pha.PHA_ACT_QSN,
         
-        /* 3. Target column from work.temp_filtered_cam not in conso */
-        cam.CAM_PRS_IDE
+        /* Variables from IR_PHA_R */
+        ref.PHA_FRM_LIB,
+        ref.PHA_ATC_L03,
+        ref.PHA_ATC_LIB, 
+		ref.PHA_SUB_DOS
         
-    from work.compil_conso as conso
+    from oravue.ER_PRS_F as prs
     
-    /* Condition 1: Match on Patient IDs from temp_cohort */
-    inner join work.temp_cohort as coh
-        on  conso.BEN_NIR_PSA = coh.BEN_NIR_PSA
-        and conso.BEN_RNG_GEM = coh.BEN_RNG_GEM
+    /* 1. Inner join with ER_PHA_F on the 9 linking keys */
+    inner join oravue.ER_PHA_F as pha
+        on  prs.FLX_DIS_DTD = pha.FLX_DIS_DTD
+        and prs.FLX_TRT_DTD = pha.FLX_TRT_DTD
+        and prs.FLX_EMT_TYP = pha.FLX_EMT_TYP
+        and prs.FLX_EMT_NUM = pha.FLX_EMT_NUM
+        and prs.FLX_EMT_ORD = pha.FLX_EMT_ORD
+        and prs.ORG_CLE_NUM = pha.ORG_CLE_NUM
+        and prs.DCT_ORD_NUM = pha.DCT_ORD_NUM
+        and prs.PRS_ORD_NUM = pha.PRS_ORD_NUM
+        and prs.REM_TYP_AFF = pha.REM_TYP_AFF
         
-    /* Condition 2: Match on the 9 joining keys from temp_filtered_cam */
-    inner join work.temp_filtered_cam as cam
-        on  conso.FLX_DIS_DTD = cam.FLX_DIS_DTD
-        and conso.FLX_TRT_DTD = cam.FLX_TRT_DTD
-        and conso.FLX_EMT_TYP = cam.FLX_EMT_TYP
-        and conso.FLX_EMT_NUM = cam.FLX_EMT_NUM
-        and conso.FLX_EMT_ORD = cam.FLX_EMT_ORD
-        and conso.ORG_CLE_NUM = cam.ORG_CLE_NUM
-        and conso.DCT_ORD_NUM = cam.DCT_ORD_NUM
-        and conso.PRS_ORD_NUM = cam.PRS_ORD_NUM
-        and conso.REM_TYP_AFF = cam.REM_TYP_AFF
-    ;
+    /* 2. Inner join with IR_PHA_R on the CIP13 code */
+    inner join oravue.IR_PHA_R as ref
+        on pha.PHA_PRS_C13 = ref.PHA_RGE_C13
+        
+    /* 3. Population Filters & ATC Drug Class Restrictions */
+    where prs.EXE_SOI_DTD between '01Jan2023'd and '31Jan2023'd
+	   and prs.FLX_DIS_DTD = '01Feb2023'd
+       and prs.BEN_SEX_COD = 2
+      and prs.BEN_AMA_COD between 19 and 39
+      and (
+          /*   ref.PHA_ATC_CLA like 'N05A%' 
+          or ref.PHA_ATC_CLA like 'N05B%' 
+          or ref.PHA_ATC_CLA like 'N05C%' 
+          or */ ref.PHA_ATC_CLA like 'N06A%' 
+          /*or ref.PHA_ATC_CLA like 'N03A%'*/
+      );
 quit;
