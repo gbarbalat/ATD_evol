@@ -60,7 +60,13 @@
                and prs.FLX_DIS_DTD = "&sql_date"d    /* Dynamically updates every loop step */
                and prs.BEN_SEX_COD = 2
                and prs.BEN_AMA_COD between 19 and 39
-               and ref.PHA_ATC_CLA like 'N06A%';
+               and (
+               /*   ref.PHA_ATC_CLA like 'N05A%' 
+               or ref.PHA_ATC_CLA like 'N05B%' 
+               or ref.PHA_ATC_CLA like 'N05C%' 
+               or */ ref.PHA_ATC_CLA like 'N06A%' 
+               /*or ref.PHA_ATC_CLA like 'N03A%'*/
+               );               
         quit;
         
         /* Advance the loop tracker forward by exactly 1 month */
