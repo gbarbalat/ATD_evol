@@ -91,3 +91,17 @@ run;
 proc datasets library=work nolist;
     delete cohort_:;
 quit;
+
+
+/*
+To filter your cohort and remove any individuals found in the anti-cohort using the combination of BEN_NIR_PSA and BEN_RNG_GEM
+*/
+proc sql;
+    create table work.filtered_treatment_cohort as
+    select *
+    from work.final_treatment_cohort
+    where (BEN_NIR_PSA, BEN_RNG_GEM) NOT IN (
+        select BEN_NIR_PSA, BEN_RNG_GEM 
+        from work.final_treatment_anticohort
+    );
+quit;
