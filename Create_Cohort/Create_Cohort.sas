@@ -1,5 +1,5 @@
 /* ==============================================================================
-   1. DEFINE THE MACRO TO GENERATE AND RUN THE MONTHLY QUERIES
+   1. DEFINE THE MACRO TO GENERATE AND RUN THE MONTHLY QUERIES WITH STEP 3 INTEGRATED
    ============================================================================== */
 %macro extract_monthly_cohorts(start_date, end_date);
     
@@ -54,18 +54,27 @@
                 and prs.REM_TYP_AFF = pha.REM_TYP_AFF
                 
             inner join oravue.IR_PHA_R as ref
-                on pha.PHA_PRS_C13 = ref.PHA_RGE_C13 /* Kept the corrected CIP13 join column */
+                on pha.PHA_PRS_C13 = ref.PHA_RGE_C13 /* Unchanged as requested */
                 
             where prs.EXE_SOI_DTD between '01Jan2015'd and '31Dec2019'd
-               and prs.FLX_DIS_DTD = "&sql_date"d    /* Dynamically updates every loop step */
+               and prs.FLX_DIS_DTD = "&sql_date"d    
                and prs.BEN_SEX_COD = 2
                and prs.BEN_AMA_COD between 19 and 39
                and (
-                  ref.PHA_ATC_CLA like 'N05A%' 
-               or ref.PHA_ATC_CLA like 'N05B%' 
-               or ref.PHA_ATC_CLA like 'N05C%' 
-               or ref.PHA_ATC_CLA like 'N06A%' 
-               or ref.PHA_ATC_CLA like 'N03A%'
+                      ref.PHA_ATC_CLA like 'N05A%' 
+                   or ref.PHA_ATC_CLA like 'N05B%' 
+                   or ref.PHA_ATC_CLA like 'N05C%' 
+                   or ref.PHA_ATC_CLA like 'N06A%' 
+                   or ref.PHA_ATC_CLA like 'N03A%'
+               )
+               /* ====================================================================
+                  INTEGRATED STEP 3: Filter out anti-cohort records immediately here
+                  ==================================================================== */
+               and not exists (
+                   select 1 
+                   from work.final_treatment_anticohort as anti
+                   where prs.BEN_NIR_PSA = anti.BEN_NIR_PSA
+                     and prs.BEN_RNG_GEM = anti.BEN_RNG_GEM
                );               
         quit;
         
@@ -79,31 +88,14 @@
 
 
 /* ==============================================================================
-   2. CONCATENATE ALL GENERATED TABLES INTO A SINGLE MASTER TABLE
+   2. CONCATENATE ALL GENERATED CLEAN TABLES INTO YOUR FINAL COHORT
    ============================================================================== */
-data work.final_treatment_cohort;
-    /* Uses a colon wildcard to automatically set, read, and merge every table 
-       in the work library that begins with the prefix 'cohort_' */
+data work.filtered_treatment_cohort;
+    /* Stacks all the monthly tables which have already been filtered */
     set work.cohort_:;
 run;
 
-/* Clean up individual temporary monthly files to save space (Optional) */
+/* Clean up individual temporary monthly files to save space */
 proc datasets library=work nolist;
     delete cohort_:;
-quit;
-
-
-/* ==============================================================================
-   3. ANTI-COHORT FILTERING (This will now run perfectly!)
-   ============================================================================== */
-proc sql;
-    create table work.filtered_treatment_cohort as
-    select *
-    from work.final_treatment_cohort as main
-    where not exists (
-        select 1 
-        from work.final_treatment_anticohort as anti
-        where main.BEN_NIR_PSA = anti.BEN_NIR_PSA
-          and main.BEN_RNG_GEM = anti.BEN_RNG_GEM
-    );
 quit;
