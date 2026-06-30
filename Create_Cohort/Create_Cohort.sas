@@ -99,9 +99,11 @@ quit;
 proc sql;
     create table work.filtered_treatment_cohort as
     select *
-    from work.final_treatment_cohort
-    where (BEN_NIR_PSA, BEN_RNG_GEM) NOT IN (
-        select BEN_NIR_PSA, BEN_RNG_GEM 
-        from work.final_treatment_anticohort /* Ensure this file is built prior to running */
+    from work.final_treatment_cohort as main
+    where not exists (
+        select 1 
+        from work.final_treatment_anticohort as anti
+        where main.BEN_NIR_PSA = anti.BEN_NIR_PSA
+          and main.BEN_RNG_GEM = anti.BEN_RNG_GEM
     );
 quit;
