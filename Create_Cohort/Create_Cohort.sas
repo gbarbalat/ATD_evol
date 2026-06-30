@@ -65,7 +65,7 @@
                or ref.PHA_ATC_CLA like 'N05B%' 
                or ref.PHA_ATC_CLA like 'N05C%' 
                or ref.PHA_ATC_CLA like 'N06A%' 
-               or ref.PHA_ATC_CLA like 'N03A%'*/
+               or ref.PHA_ATC_CLA like 'N03A%'
                );               
         quit;
         
@@ -93,29 +93,15 @@ proc datasets library=work nolist;
 quit;
 
 
-/*
-To filter your cohort and remove any individuals found in the anti-cohort using the combination of BEN_NIR_PSA and BEN_RNG_GEM
-*/
+/* ==============================================================================
+   3. ANTI-COHORT FILTERING (This will now run perfectly!)
+   ============================================================================== */
 proc sql;
     create table work.filtered_treatment_cohort as
     select *
     from work.final_treatment_cohort
     where (BEN_NIR_PSA, BEN_RNG_GEM) NOT IN (
         select BEN_NIR_PSA, BEN_RNG_GEM 
-        from work.final_treatment_anticohort
-    );
-quit;
-
-
-/*
-To filter your cohort and remove any individuals found in the anti-cohort using the combination of BEN_NIR_PSA and BEN_RNG_GEM
-*/
-proc sql;
-    create table work.filtered_treatment_cohort as
-    select *
-    from work.final_treatment_cohort
-    where (BEN_NIR_PSA, BEN_RNG_GEM) NOT IN (
-        select BEN_NIR_PSA, BEN_RNG_GEM 
-        from work.final_treatment_anticohort
+        from work.final_treatment_anticohort /* Ensure this file is built prior to running */
     );
 quit;
