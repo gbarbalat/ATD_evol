@@ -38,8 +38,15 @@ merged_col_obs[, Rx_class := fcase(
 #Apply Individualized dispensing pattern method
 source("IDP.R")
 merged_col_obs <- merged_col_obs %>% mutate(dispensed_date=EXE_SOI_DTD, quantity_dispensed=ndays)
-IDP_function(data=merged_col_obs, drug_name=PHA_ATC_LIB, strength=PHA_SUB_DOS, formulation = PHA_FRM_LIB, )
-
+final_episodes <- run_hybrid_idp(
+  dt = merged_col_obs, 
+  molecule_var = "drug_name", 
+  formulation_var = "formulation", 
+  quantity_var = "quantity_dispensed", 
+  date_var = "dispensed_date", 
+  prescribed_dose_mg_var = "PHA_SUB_DOS", # Prescribed daily dose in mg
+  strength_mg_var = "strength_numeric"     # Parsed numeric strength (e.g. 75 or 150)
+)
 
 merged_gp: Add on new set of var; Group/arrange levels based on 30-2% per level & not too many levels (<7) & further steps
 plot var-outcome & biV; redo merged_gp if necessary
