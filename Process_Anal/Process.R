@@ -54,7 +54,8 @@ final_episodes <- run_hybrid_idp(
 #merged_gp: Add on new set of var; Group/arrange levels based on 30-2% per level & not too many levels (<7) & further steps
 #explore with tables, NA, na_if
 #gp variables if necessary
-merged_gp <- merged_col_obs
+merged_gp <- merged_col_obs[final_episodes, on = "id"]
+
 # Identify categorical or factor columns
 char_cols <- names(merged_gp)[sapply(merged_gp, function(x) is.character(x) | is.factor(x) | is.logical(x))]
 
