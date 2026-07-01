@@ -37,7 +37,8 @@ merged_col_obs[, Rx_class := fcase(
 
 #Apply Individualized dispensing pattern method
 source("IDP.R")
-IDP_function(data=merged_col_obs, drug_name=PHA_ATC_LIB, strength=PHA_SUB_DOS, formulation = PHA_FRM_LIB, dispensed_date=EXE_SOI_DTD, quantity_dispensed=ndays)
+merged_col_obs <- merged_col_obs %>% mutate(dispensed_date=EXE_SOI_DTD, quantity_dispensed=ndays)
+IDP_function(data=merged_col_obs, drug_name=PHA_ATC_LIB, strength=PHA_SUB_DOS, formulation = PHA_FRM_LIB, )
 
 
 merged_gp: Add on new set of var; Group/arrange levels based on 30-2% per level & not too many levels (<7) & further steps
