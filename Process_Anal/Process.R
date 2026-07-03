@@ -1,11 +1,64 @@
+rm(list=ls())
+
 library(haven)
-library(dplyr)
 library(data.table)
 
-merged_ <- haven::read_sas("./sasdata1/filtered_treatment_cohort.sas7bdat")
+sas_file <- "./sasdata1/filtered_treatment_cohort.sas7bdat"
+
+# Configurations
+chunk_size <- 5000000
+skip_rows <- 0
+chunk_list <- list()
+i <- 1
+
+repeat {
+  message(sprintf("Reading rows %s to %s...", skip_rows + 1, skip_rows + chunk_size))
+  
+  # Read a subset of the file
+  df_chunk <- read_sas(sas_file, skip = skip_rows, n_max = chunk_size)
+  
+  # Break the loop if we have reached the end of the file
+  if (nrow(df_chunk) == 0) {
+    message("Finished reading all rows.")
+    break
+  }
+  
+  # Strip heavy SAS attributes and convert directly to data.table in memory
+  dt_chunk <- as.data.table(lapply(df_chunk, function(x) {
+    attr(x, "label") <- NULL
+    attr(x, "format.sas") <- NULL
+    class(x) <- setdiff(class(x), "haven_labelled")
+    return(x)
+  }))
+  
+  # Save the clean table chunk into our list
+  chunk_list[[i]] <- dt_chunk
+  
+  # Advance row trackers
+  skip_rows <- skip_rows + chunk_size
+  i <- i + 1
+  
+  # Force R to clear deleted temporary memory allocations
+  gc() 
+}
+
+# Combine the clean pieces into a single master data.table
+merged_ <- rbindlist(chunk_list)
+
+# Ultimate memory cleanup
+rm(chunk_list, df_chunk, dt_chunk); gc()
 
 merged_[, id := stringi::stri_c(BEN_NIR_PSA, "_", BEN_RNG_GEM)]
-unique_id <- unique(merged_$id)
+
+# 1. Filter the rows where the ATC class starts with N06A or N06C
+# 2. Extract only the unique 'id' values from those rows
+matching_ids <- unique(merged_[PHA_ATC_CLA %like% "^N06A|^N06C", id])
+
+# 1. Set the key (indexes the data by ID instantly)
+setkey(merged_, id)
+
+# 2. Filter using the indexed key (blistering fast)
+merged_ <- merged_[.(matching_ids)]
 
 #merged_ merge Exp, Out, Cv - explore #, unique and NA in ID and col names (.x and .y)
 colnames(merged_)
