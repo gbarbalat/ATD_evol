@@ -68,15 +68,15 @@ colSums(is.na(merged_))
 
 
 #Add on obvious var, obvious select, filter (excl criteria) & recode (e.g. G027B=Citizen, S022= Year + Month) inc. na_if, make categ; Explore NA/distributions; 
-merged_add_select_filter_recode <- merged_ %>% select(-BEN_NIR_PSA, BEN_RNG_GEM)
-#for each id, make the long wide for each prescription (Nrow -> Ndays) 
+merged_add_select_filter_recode <- merged_ %>% select(-BEN_NIR_PSA, -BEN_RNG_GEM)
+#for each id, make the long wide for each prescription 
 # Convert to data.table if it isn't one already
 setDT(merged_add_select_filter_recode)
 # Collapse to one row per id and date group, creating the 'ndays' column
 merged_add_select_filter_recode <- merged_add_select_filter_recode[, c(
-  .(ndays = .N),               # Create the count column
+  .(nrows = .N),               # Create the count column
   lapply(.SD, first)           # Grab the first row's value for all other columns
-), by = .(id, FLX_DIS_DTD)]
+), by = .(id, EXE_SOI_DTD)]
 
 #recode medication class
 # Assign labels based on the start of the ATC code string
@@ -98,7 +98,7 @@ setDT(merged_add_select_filter_recode)
 
 # 1. Identify the 'id's whose absolute first prescription matches the exclusions
 excluded_ids <- merged_add_select_filter_recode[
-  order(FLX_DIS_DTD),                    # Sort chronologically by dispense date
+  order(EXE_SOI_DTD),                    # Sort chronologically by dispense date
   .(first_atc = PHA_ATC_CLA[1]),         # Extract the very first ATC code
   by = id
 ][
@@ -113,13 +113,15 @@ table(merged_add_select_filter_recode$Rx_class)
 table(merged_add_select_filter_recode$PHA_ATC_LIB)
 table(merged_add_select_filter_recode$PHA_FRM_LIB)
 table(merged_add_select_filter_recode$PHA_ACT_QSN)
-table(merged_add_select_filter_recode$ndays)
+table(merged_add_select_filter_recode$PHA_UPC_NBR)
+table(merged_add_select_filter_recode$nrows)
 
 #recode formulation (PHA_FRM_LIB) as injection vs. non-injection 
 #No injection in PHA_FRM_LIB
 merged_add_select_filter_recode$PHA_FRM_LIB <- "NonInjection"
 
 #Apply Individualized dispensing pattern method
+stop()
 source("IDP.R")
 merged_add_select_filter_recode[, prescribed_dose := PHA_SUB_DOS * PHA_ACT_QSN]
 final_episodes <- run_hybrid_idp(
