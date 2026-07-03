@@ -62,31 +62,33 @@ merged_ <- merged_[.(matching_ids)]
 
 #merged_ merge Exp, Out, Cv - explore #, unique and NA in ID and col names (.x and .y)
 colnames(merged_)
-nrows(merged_)
+nrow(merged_)
 unique(merged_$id)
 colSums(is.na(merged_))
 
 
-#merged_col_obs: Add on obvious var, obvious select, filter (excl criteria) & recode (e.g. G027B=Citizen, S022= Year + Month) inc. na_if, make categ; Explore NA/distributions; 
-merged_col_obs <- merged_
+#Add on obvious var, obvious select, filter (excl criteria) & recode (e.g. G027B=Citizen, S022= Year + Month) inc. na_if, make categ; Explore NA/distributions; 
+merged_add_select_filter_recode <- merged_ %>% select(-BEN_NIR_PSA, BEN_RNG_GEM)
 #for each id, make the long wide for each prescription (Nrow -> Ndays) 
 # Convert to data.table if it isn't one already
-setDT(merged_col_obs)
+setDT(merged_add_select_filter_recode)
 # Collapse to one row per id and date group, creating the 'ndays' column
-merged_col_obs <- merged_col_obs[, .(
-  ndays = .N,
-  # Keep the first occurrence of all other columns
-  across(everything(), first) 
+merged_add_select_filter_recode <- merged_add_select_filter_recode[, c(
+  .(ndays = .N),               # Create the count column
+  lapply(.SD, first)           # Grab the first row's value for all other columns
 ), by = .(id, FLX_DIS_DTD)]
 
 #recode medication class
 # Assign labels based on the start of the ATC code string
-merged_col_obs[, Rx_class := fcase(
+merged_add_select_filter_recode[, Rx_class := fcase(
   startsWith(PHA_ATC_CLA, "N05AN01"), "Lithium",
   startsWith(PHA_ATC_CLA, "N05A"),    "Antipsychotics (excl. Lithium)",
   startsWith(PHA_ATC_CLA, "N05B"),    "Anxiolytics",
   startsWith(PHA_ATC_CLA, "N05C"),    "Hypnotics and Sedatives",
   startsWith(PHA_ATC_CLA, "N06A"),    "Antidepressants",
+    startsWith(PHA_ATC_CLA, "N06BA"),    "Stimulants",
+  startsWith(PHA_ATC_CLA, "N06C"),    "Antidepressants+",
+
   startsWith(PHA_ATC_CLA, "N03A"),    "Antiepileptics",
   default = "Other"
 )]
@@ -96,9 +98,9 @@ stop()
 
 #Apply Individualized dispensing pattern method
 source("IDP.R")
-merged_col_obs[, prescribed_dose := PHA_SUB_DOS * PHA_ACT_QSN]
+merged_add_select_filter_recode[, prescribed_dose := PHA_SUB_DOS * PHA_ACT_QSN]
 final_episodes <- run_hybrid_idp(
-  dt = merged_col_obs, 
+  dt = merged_add_select_filter_recode, 
   molecule_var = "PHA_ATC_LIB", #"drug_name", 
   formulation_var = "PHA_FRM_LIB", 
   quantity_var = "ndays", #days of prescription ("quantity_dispensed")
@@ -110,7 +112,7 @@ final_episodes <- run_hybrid_idp(
 #merged_gp: Add on new set of var; Group/arrange levels based on 30-2% per level & not too many levels (<7) & further steps
 #explore with tables, NA, na_if
 #gp variables if necessary
-merged_gp <- merged_col_obs[final_episodes, on = "id"]
+merged_gp <- merged_add_select_filter_recode[final_episodes, on = "id"]
 
 # Identify categorical or factor columns
 char_cols <- names(merged_gp)[sapply(merged_gp, function(x) is.character(x) | is.factor(x) | is.logical(x))]
