@@ -113,10 +113,11 @@ table(merged_add_select_filter_recode$Rx_class)
 table(merged_add_select_filter_recode$PHA_ATC_LIB)
 table(merged_add_select_filter_recode$PHA_FRM_LIB)
 table(merged_add_select_filter_recode$PHA_ACT_QSN)
+table(merged_add_select_filter_recode$ndays)
 
 #recode formulation (PHA_FRM_LIB) as injection vs. non-injection 
 #No injection in PHA_FRM_LIB
-stop()
+merged_add_select_filter_recode$PHA_FRM_LIB <- "NonInjection"
 
 #Apply Individualized dispensing pattern method
 source("IDP.R")
