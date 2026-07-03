@@ -123,15 +123,16 @@ merged_add_select_filter_recode$PHA_FRM_LIB <- "NonInjection"
 #Apply Individualized dispensing pattern method
 stop()
 source("IDP.R")
-merged_add_select_filter_recode[, prescribed_dose := PHA_SUB_DOS * PHA_ACT_QSN]
-final_episodes <- run_hybrid_idp(
-  dt = merged_add_select_filter_recode, 
-  molecule_var = "PHA_ATC_LIB", #"drug_name", 
-  formulation_var = "PHA_FRM_LIB", 
-  quantity_var = "ndays", #days of prescription ("quantity_dispensed")
-  date_var = "EXE_SOI_DTD",#"dispensed_date", 
-  prescribed_dose_mg_var = "prescribed_dose", # Prescribed daily dose in mg
-  strength_mg_var = "PHA_SUB_DOS"     # Parsed numeric strength (e.g. 75 or 150 for EFFEXOR)
+merged_add_select_filter_recode[, nb_pills := PHA_ACT_QSN * PHA_UPC_NBR ] #nbr of boxes x nbr of pills per box
+
+# Execute the classic IDP algorithm across the cohort matrix
+final_episodes <- run_classic_idp(
+  dt              = merged_add_select_filter_recode, 
+  molecule_var    = "PHA_ATC_LIB",      # Name of the molecule
+  formulation_var = "PHA_FRM_LIB",      # Formulation style mapping
+  strength_var    = "PHA_SUB_DOS",      # Meds dose variant strength (e.g., 25, 100)
+  quantity_var    = "nb_pills",            # Total quantity volume units metric
+  date_var        = "EXE_SOI_DTD"       # Dispensation timeline date vector
 )
 
 #merged_gp: Add on new set of var; Group/arrange levels based on 30-2% per level & not too many levels (<7) & further steps
