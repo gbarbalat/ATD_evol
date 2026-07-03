@@ -72,7 +72,7 @@ merged_add_select_filter_recode <- merged_ %>% select(-BEN_NIR_PSA, -BEN_RNG_GEM
 #for each id, make the long wide for each prescription 
 # Convert to data.table if it isn't one already
 setDT(merged_add_select_filter_recode)
-# Collapse to one row per id and date group, creating the 'ndays' column
+# Collapse to one row per id and date group, creating the 'nrows' column
 merged_add_select_filter_recode <- merged_add_select_filter_recode[, c(
   .(nrows = .N),               # Create the count column
   lapply(.SD, first)           # Grab the first row's value for all other columns
