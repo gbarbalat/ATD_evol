@@ -62,8 +62,8 @@
                and prs.BEN_AMA_COD between 17 and 37
                and (
                   ref.PHA_ATC_CLA like 'N05A%' 
-               or ref.PHA_ATC_CLA like 'N05B%' 
-               or ref.PHA_ATC_CLA like 'N05C%' 
+               or ref.PHA_ATC_CLA like 'N06BA%' 
+               or ref.PHA_ATC_CLA like 'N06C%' 
                or ref.PHA_ATC_CLA like 'N06A%' 
                or ref.PHA_ATC_CLA like 'N03A%'
                );               
