@@ -2,9 +2,12 @@ library(haven)
 library(dplyr)
 library(data.table)
 
+merged_ <- haven::read_sas("./sasdata1/filtered_treatment_cohort.sas7bdat")
+
+merged_[, id := stringi::stri_c(BEN_NIR_PSA, "_", BEN_RNG_GEM)]
+unique_id <- unique(merged_$id)
+
 #merged_ merge Exp, Out, Cv - explore #, unique and NA in ID and col names (.x and .y)
-merged_ <- read_sas("final_cohort.sas7bdat")
-merged_col_obs[, id := stringi::stri_c(BEN_NIR_PSA, "_", BEN_RNG_GEM)]
 colnames(merged_)
 nrows(merged_)
 unique(merged_$id)
