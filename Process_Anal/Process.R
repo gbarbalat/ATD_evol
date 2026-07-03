@@ -93,7 +93,29 @@ merged_add_select_filter_recode[, Rx_class := fcase(
   default = "Other"
 )]
 
+#Filter out individuals where their first prescription is an antiepileptic, and antipsychotic or a stimulant
+setDT(merged_add_select_filter_recode)
+
+# 1. Identify the 'id's whose absolute first prescription matches the exclusions
+excluded_ids <- merged_add_select_filter_recode[
+  order(FLX_DIS_DTD),                    # Sort chronologically by dispense date
+  .(first_atc = PHA_ATC_CLA[1]),         # Extract the very first ATC code
+  by = id
+][
+  # Filter this lookup table for the forbidden starting codes
+  first_atc %like% "^N03A|^N05A|^N06BA", 
+  id                                     # Keep only the vector of IDs
+]
+
+# 2. Remove these individuals completely from your main dataset
+merged_add_select_filter_recode <- merged_add_select_filter_recode[!(id %in% excluded_ids)]
+table(merged_add_select_filter_recode$Rx_class)
+table(merged_add_select_filter_recode$PHA_ATC_LIB)
+table(merged_add_select_filter_recode$PHA_FRM_LIB)
+table(merged_add_select_filter_recode$PHA_ACT_QSN)
+
 #recode formulation (PHA_FRM_LIB) as injection vs. non-injection 
+#No injection in PHA_FRM_LIB
 stop()
 
 #Apply Individualized dispensing pattern method
