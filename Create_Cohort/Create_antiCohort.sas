@@ -38,7 +38,8 @@
                 ref.PHA_FRM_LIB,
                 ref.PHA_ATC_L03,
                 ref.PHA_ATC_LIB, 
-                ref.PHA_SUB_DOS
+                ref.PHA_SUB_DOS,
+                ref.PHA_UPC_NBR
                 
             from oravue.ER_PRS_F as prs
             
