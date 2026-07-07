@@ -45,11 +45,11 @@
                and prs.BEN_SEX_COD = 2
                and prs.BEN_AMA_COD between 19 and 39
                and (
-                      ref.PHA_ATC_CLA like 'N05A%' 
-                   or ref.PHA_ATC_CLA like 'N05B%' 
-                   or ref.PHA_ATC_CLA like 'N05C%' 
-                   or ref.PHA_ATC_CLA like 'N06A%' 
-                   or ref.PHA_ATC_CLA like 'N03A%'
+                      ref.PHA_ATC_CLA like 'N05A%' /* AP + Li */
+                   or ref.PHA_ATC_CLA like 'N05B%' /* Anxiol */
+                   or ref.PHA_ATC_CLA like 'N05C%' /* Sleeping pills */
+                   or ref.PHA_ATC_CLA like 'N06A%' /* ATD - Forget about N06C = Tricyclic + BZD or NLP */
+                   or ref.PHA_ATC_CLA like 'N03A%' /* AntiEpi */
                );               
         quit;
         
