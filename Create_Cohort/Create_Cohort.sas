@@ -21,7 +21,7 @@
                 prs.EXE_SOI_DTD, prs.FLX_DIS_DTD, prs.BEN_SEX_COD, prs.BEN_AMA_COD,
                 prs.BEN_DCD_DTE, prs.BEN_NIR_PSA, prs.BEN_RNG_GEM, prs.BEN_RES_DPT,
                 prs.BEN_RES_COM, prs.PRE_PRE_DTD, prs.PRS_GRS_DTD,
-                pha.PHA_PRS_C13, pha.PHA_ACT_QSN,
+                pha.PHA_PRS_C13, pha.PHA_ACT_QSN,xcccccccccccccccccccccccccccccc
                 ref.PHA_FRM_LIB, ref.PHA_ATC_L03, ref.PHA_ATC_LIB, ref.PHA_SUB_DOS, ref.PHA_UPC_NBR, ref.PHA_ATC_CLA
                 
             from oravue.ER_PRS_F as prs
@@ -48,7 +48,7 @@
                       ref.PHA_ATC_CLA like 'N05A%' /* AP + Li */
                    or ref.PHA_ATC_CLA like 'N05B%' /* Anxiol */
                    or ref.PHA_ATC_CLA like 'N05C%' /* Sleeping pills */
-                   or ref.PHA_ATC_CLA like 'N06A%' /* ATD - Forget about N06C = Tricyclic + BZD or NLP */
+                   or ref.PHA_ATC_CLA like 'N06A%' /* ATD - Forget about N06C = Tricyclic + BZD or NLP (too old) */
                    or ref.PHA_ATC_CLA like 'N03A%' /* AntiEpi */
                );               
         quit;
