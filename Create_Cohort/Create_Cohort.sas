@@ -21,7 +21,7 @@
                 prs.EXE_SOI_DTD, prs.FLX_DIS_DTD, prs.BEN_SEX_COD, prs.BEN_AMA_COD,
                 prs.BEN_DCD_DTE, prs.BEN_NIR_PSA, prs.BEN_RNG_GEM, prs.BEN_RES_DPT,
                 prs.BEN_RES_COM, prs.PRE_PRE_DTD, prs.PRS_GRS_DTD,
-                pha.PHA_PRS_C13, pha.PHA_ACT_QSN,xcccccccccccccccccccccccccccccc
+                pha.PHA_PRS_C13, pha.PHA_ACT_QSN,
                 ref.PHA_FRM_LIB, ref.PHA_ATC_L03, ref.PHA_ATC_LIB, ref.PHA_SUB_DOS, ref.PHA_UPC_NBR, ref.PHA_ATC_CLA
                 
             from oravue.ER_PRS_F as prs
