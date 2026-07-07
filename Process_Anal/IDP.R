@@ -1,82 +1,93 @@
-library(data.table)
+library(dplyr)
+library(lubridate)
+library(slider) # Required for efficient rolling means in dplyr
 
-run_classic_idp <- function(dt, molecule_var, formulation_var, strength_var, quantity_var, date_var) {
+run_classic_idp_dplyr <- function(df, product_var = "PHA_PRS_C13", quantity_var = "PHA_ACT_QSN", date_var = "EXE_SOI_DTD") {
   
   # 1. PREPARE THE DATA CORE
-  analysis_data <- copy(dt)
-  
-  setnames(analysis_data, 
-           c(molecule_var, formulation_var, strength_var, quantity_var, date_var), 
-           c("molecule", "formulation", "strength", "quantity_dispensed", "dispensed_date"))
-  
-  # Grouping key combining molecule profile configurations
-  analysis_data[, unit_spec := paste(molecule, strength, formulation, sep = "_")]
-  
-  # Force chronological sort order
-  setkey(analysis_data, id, molecule, formulation, dispensed_date)
-  
-  # Track timeline position per drug category
-  analysis_data[, disp_index := 1:.N, by = .(id, molecule, formulation)]
+  # Use rename with injection (!!) to handle dynamic column strings safely
+  analysis_data <- df %>%
+    rename(
+      product_code       = !!sym(product_var),
+      quantity_dispensed = !!sym(quantity_var),
+      dispensed_date     = !!sym(date_var)
+    ) %>%
+    mutate(dispensed_date = as.Date(dispensed_date)) %>%
+    # Force chronological sort order by patient and product timeline
+    arrange(id, product_code, dispensed_date) %>%
+    # Track timeline position per distinct product group
+    group_by(id, product_code) %>%
+    mutate(disp_index = row_number()) %>%
+    ungroup()
   
   # 2. POPULATION CALIBRATION: Calculate e_pop via Valid Inter-dispensing Gaps
-  analysis_data[, next_date := shift(dispensed_date, type = "lead"), by = .(id, molecule, formulation)]
-  analysis_data[, days_to_next := as.numeric(next_date - dispensed_date)]
+  analysis_data <- analysis_data %>%
+    group_by(id, product_code) %>%
+    mutate(
+      next_date    = lead(dispensed_date),
+      days_to_next = as.numeric(next_date - dispensed_date)
+    ) %>%
+    ungroup()
   
   # Isolate valid intervals (>= 2 dispensings under 180 days apart) to calibrate epop
-  valid_pairs <- analysis_data[days_to_next > 0 & days_to_next < 180]
-  valid_pairs[, days_per_unit := days_to_next / quantity_dispensed]
-  
-  # Group by the specific molecule/strength/formulation combo
-  epop_table <- valid_pairs[, .(
-    epop_factor = quantile(days_per_unit, probs = 0.80, na.rm = TRUE)
-  ), by = .(unit_spec)]
+  epop_table <- analysis_data %>%
+    filter(days_to_next > 0 & days_to_next < 180) %>%
+    group_by(product_code) %>%
+    summarise(
+      epop_factor = quantile(days_to_next / quantity_dispensed, probs = 0.80, na.rm = TRUE),
+      .groups = "drop"
+    )
   
   # Merge epop factors back into the main timeline matrix
-  analysis_data <- merge(analysis_data, epop_table, by = "unit_spec", all.x = TRUE)
-  setkey(analysis_data, id, molecule, formulation, dispensed_date)
+  analysis_data <- analysis_data %>%
+    left_join(epop_table, by = "product_code") %>%
+    arrange(id, product_code, dispensed_date)
   
   # 3. INDIVIDUAL DYNAMIC WINDOWS (Moving Average Engine)
-  # Calculate the moving average of the prior 3 actual intervals
-  analysis_data[, rolling_3_interval := shift(
-    frollmean(days_to_next, n = 3, align = "right", fill = NA), 
-    n = 1, type = "lag", fill = NA
-  ), by = .(id, molecule, formulation)]
-  
-  analysis_data[, estimated_duration := as.numeric(NA)]
-  
-  # Baseline calculation using epop * quantity volume
-  analysis_data[, epop_duration := epop_factor * quantity_dispensed]
-  
-  # Rule A: The absolute first 3 dispensings use epop proxy baseline
-  analysis_data[disp_index <= 3, estimated_duration := epop_duration]
-  
-  # Rule B: Subsequent lines use the moving window average (fallback to epop if missing)
-  analysis_data[disp_index > 3, estimated_duration := ifelse(
-    is.na(rolling_3_interval), 
-    epop_duration, 
-    rolling_3_interval
-  )]
+  analysis_data <- analysis_data %>%
+    group_by(id, product_code) %>%
+    mutate(
+      # slider::slide_mean calculates right-aligned rolling mean on the active group matrix
+      rolling_3_interval = lag(slider::slide_mean(days_to_next, before = 2, after = 0, complete = TRUE)),
+      
+      epop_duration = epop_factor * quantity_dispensed,
+      
+      estimated_duration = case_when(
+        disp_index <= 3 ~ epop_duration,
+        disp_index > 3 & !is.na(rolling_3_interval) ~ rolling_3_interval,
+        TRUE ~ epop_duration # fallback to epop baseline if rolling calculation is missing
+      )
+    ) %>%
+    ungroup()
   
   # 4. EPISODE CONSTRUCTION
-  analysis_data[, coverage_end_date := dispensed_date + estimated_duration]
-  analysis_data[, prior_coverage_end := shift(coverage_end_date, type = "lag"), by = .(id, molecule, formulation)]
-  analysis_data[, gap_days := as.numeric(dispensed_date - prior_coverage_end)]
-  
-  analysis_data[, is_new_episode := FALSE]
-  analysis_data[disp_index == 1, is_new_episode := TRUE]
-  analysis_data[disp_index > 1 & gap_days > 15, is_new_episode := TRUE]
-  
-  analysis_data[, episode_id := cumsum(is_new_episode), by = .(id, molecule, formulation)]
+  analysis_data <- analysis_data %>%
+    group_by(id, product_code) %>%
+    mutate(
+      coverage_end_date  = dispensed_date + estimated_duration,
+      prior_coverage_end = lag(coverage_end_date),
+      gap_days           = as.numeric(dispensed_date - prior_coverage_end),
+      
+      is_new_episode = if_else(disp_index == 1 | (disp_index > 1 & gap_days > 15), TRUE, FALSE),
+      episode_id     = cumsum(is_new_episode)
+    ) %>%
+    ungroup()
   
   # 5. AGGREGATE INTO TREATMENT EPISODES
-  treatment_episodes <- analysis_data[, .(
-    episode_start           = min(dispensed_date),
-    last_dispense_date      = max(dispensed_date),
-    final_dispense_duration = last(estimated_duration)
-  ), by = .(id, molecule, formulation, episode_id)]
-  
-  treatment_episodes[, episode_end := last_dispense_date + final_dispense_duration]
-  treatment_episodes[, total_duration_days := as.numeric(episode_end - episode_start)]
+  treatment_episodes <- analysis_data %>%
+    group_by(id, product_code, episode_id) %>%
+    summarise(
+      episode_start           = min(dispensed_date),
+      last_dispense_date      = max(dispensed_date),
+      final_dispense_duration = last(estimated_duration),
+      .groups = "drop"
+    ) %>%
+    mutate(
+      episode_end        = last_dispense_date + final_dispense_duration,
+      total_duration_days = as.numeric(episode_end - episode_start)
+    ) %>%
+    # Restore the original product variable name for output clarity
+    rename(!!sym(product_var) := product_code)
   
   return(treatment_episodes)
 }
