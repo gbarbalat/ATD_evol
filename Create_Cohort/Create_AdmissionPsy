@@ -19,7 +19,7 @@ run;
             main.EXE_SOI_DTF
         from 
             oravue.T_RIP&year.C as main
-        inner join 
+		inner join 
             work.allowed_nirs as filter
         on 
             main.NIR_ANO_17 = filter.NIR_ANO_17;
@@ -29,17 +29,33 @@ run;
         select 
             main.NIR_ANO_17, 
             main.EXE_SOI_DTD, 
-            main.EXE_SOI_DTF
+            main.EXE_SOI_DTF,
+            for_dx.DGN_PAL,
+            which_cim.CIM_LIL
         from 
-            oravue.T_MCO&year.C as main   /* Note the underscore structure: T_MCOxxC */
+            oravue.T_MCO&year.C as main 
+        inner join 
+            oravue.T_MCO&year.B as for_dx
+        on 
+            main.ETA_NUM = for_dx.ETA_NUM AND main.RSA_NUM = for_dx.RSA_NUM
+        left join 
+            oraval.MS_CIM_V as which_cim
+        on 
+            for_dx.DGN_PAL = which_cim.CIM_COD
         inner join 
             work.allowed_nirs as filter
         on 
             main.NIR_ANO_17 = filter.NIR_ANO_17
-
-        WHERE main.NIR_ANO_17   not in ('xxxxxxxxxxxxxxxxx', 'BXXXXXXXXXXXXXXXX') 
-	            and (NIR_RET = '0' and NAI_RET = '0' and SEX_RET = '0' and SEJ_RET = '0' 
-	            and FHO_RET = '0'  and PMS_RET = '0' and DAT_RET = '0');             
+        where 
+            main.NIR_ANO_17 not in ('xxxxxxxxxxxxxxxxx', 'BXXXXXXXXXXXXXXXX') 
+            and main.NIR_RET = '0' 
+            and main.NAI_RET = '0' 
+            and main.SEX_RET = '0' 
+            and main.SEJ_RET = '0' 
+            and main.FHO_RET = '0'  
+            and main.PMS_RET = '0' 
+            and main.DAT_RET = '0';
+                     
     %end;
     quit;
 %mend extract_all_data;
