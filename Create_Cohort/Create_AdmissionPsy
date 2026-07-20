@@ -35,8 +35,11 @@ run;
         inner join 
             work.allowed_nirs as filter
         on 
-            main.NIR_ANO_17 = filter.NIR_ANO_17;
-            
+            main.NIR_ANO_17 = filter.NIR_ANO_17
+
+        WHERE main.NIR_ANO_17   not in ('xxxxxxxxxxxxxxxxx', 'BXXXXXXXXXXXXXXXX') 
+	            and (NIR_RET = '0' and NAI_RET = '0' and SEX_RET = '0' and SEJ_RET = '0' 
+	            and FHO_RET = '0'  and PMS_RET = '0' and DAT_RET = '0');             
     %end;
     quit;
 %mend extract_all_data;
