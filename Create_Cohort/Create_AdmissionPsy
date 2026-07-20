@@ -16,14 +16,43 @@ run;
         select 
             main.NIR_ANO_17, 
             main.EXE_SOI_DTD, 
-            main.EXE_SOI_DTF
+            main.EXE_SOI_DTF/*, 
+            for_dx.DGN_PAL,
+            which_cim.CIM_LIL*/
         from 
             oravue.T_RIP&year.C as main
-		inner join 
+        inner join 
+            oravue.T_RIP&year.RSA as for_dx
+        on 
+            main.ETA_NUM_EPMSI = for_dx.ETA_NUM_EPMSI AND main.RIP_NUM = for_dx.RIP_NUM
+        left join 
+            oraval.MS_CIM_V as which_cim
+        on 
+            for_dx.DGN_PAL = which_cim.CIM_COD
+        inner join 
             work.allowed_nirs as filter
         on 
-            main.NIR_ANO_17 = filter.NIR_ANO_17;
-            
+            main.NIR_ANO_17 = filter.NIR_ANO_17
+        where 
+            for_dx.ETA_NUM_EPMSI not in ('130780521', '130783236', '130783293', '130784234', '130804297','600100101', '750041543',
+'750100018', '750100042', '750100075', '750100083', '750100091', '750100109', '750100125', '750100166', '750100208', 
+'750100216', '750100232', '750100273', '750100299' , '750801441', '750803447', '750803454', '910100015', '910100023', 
+'920100013', '920100021', '920100039', '920100047', '920100054', '920100062', '930100011', '930100037', '930100045', 
+'940100027', '940100035', '940100043', '940100050', '940100068', '950100016', '690783154', '690784137', '690784152', 
+'690784178', '690787478', '830100558')
+            /* Note: Removed GRG_GHM filter here since RIP uses GME system instead 
+            and for_dx.ENT_MOD <> '0' 
+            and for_dx.SOR_MOD <> '0' */
+            and main.NIR_ANO_17 not in ('xxxxxxxxxxxxxxxxx', 'BXXXXXXXXXXXXXXXX') 
+            and main.NIR_RET = '0' 
+            and main.NAI_RET = '0' 
+            and main.SEX_RET = '0' 
+            and main.SEJ_RET = '0' 
+            and main.FHO_RET = '0'  
+            and main.PMS_RET = '0' 
+            and main.DAT_RET = '0';
+
+
         /* --- Extract MCO Data --- */
         create table work.mco_extract_20&year. as 
         select 
@@ -47,7 +76,16 @@ run;
         on 
             main.NIR_ANO_17 = filter.NIR_ANO_17
         where 
-            main.NIR_ANO_17 not in ('xxxxxxxxxxxxxxxxx', 'BXXXXXXXXXXXXXXXX') 
+            for_dx.ETA_NUM not in ('130780521', '130783236', '130783293', '130784234', '130804297','600100101', '750041543',
+'750100018', '750100042', '750100075', '750100083', '750100091', '750100109', '750100125', '750100166', '750100208', 
+'750100216', '750100232', '750100273', '750100299' , '750801441', '750803447', '750803454', '910100015', '910100023', 
+'920100013', '920100021', '920100039', '920100047', '920100054', '920100062', '930100011', '930100037', '930100045', 
+'940100027', '940100035', '940100043', '940100050', '940100068', '950100016', '690783154', '690784137', '690784152', 
+'690784178', '690787478', '830100558')
+            and for_dx.GRG_GHM NOT LIKE '90%' 
+            and for_dx.ENT_MOD <> '0' 
+            and for_dx.SOR_MOD <> '0'
+            and main.NIR_ANO_17 not in ('xxxxxxxxxxxxxxxxx', 'BXXXXXXXXXXXXXXXX') 
             and main.NIR_RET = '0' 
             and main.NAI_RET = '0' 
             and main.SEX_RET = '0' 
