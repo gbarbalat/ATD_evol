@@ -1,0 +1,35 @@
+/* 1. Convert your R/Python/Macro vector into a temporary SAS dataset for efficient joining */
+data work.allowed_nirs;
+    length NIR_ANO_17 $17;
+    /* If your vector is a space-separated macro string named &all_ben_nir_psa */
+    string = "&all_ben_nir_psa.";
+    do i = 1 to countw(string, " ");
+        NIR_ANO_17 = scan(string, i, " ");
+        output;
+    end;
+    drop string i;
+run;
+
+/* 2. Create a macro to loop through the years 15 to 19 */
+%macro extract_rip_data;
+    proc sql;
+    %do year = 15 %to 19;
+        
+        create table work.rip_extract_20&year. as 
+        select 
+            main.NIR_ANO_17, 
+            main.EXE_SOI_DTD, 
+            main.EXE_SOI_DTF
+        from 
+            oravue.T_RIP&year.C as main
+        inner join 
+            work.allowed_nirs as filter
+        on 
+            main.NIR_ANO_17 = filter.NIR_ANO_17;
+            
+    %end;
+    quit;
+%mend extract_rip_data;
+
+/* 3. Run the macro */
+%extract_rip_data;
