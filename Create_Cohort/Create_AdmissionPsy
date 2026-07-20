@@ -16,9 +16,9 @@ run;
         select 
             main.NIR_ANO_17, 
             main.EXE_SOI_DTD, 
-            main.EXE_SOI_DTF/*, 
+            main.EXE_SOI_DTF, 
             for_dx.DGN_PAL,
-            which_cim.CIM_LIL*/
+            which_cim.CIM_LIL
         from 
             oravue.T_RIP&year.C as main
         inner join 
