@@ -6,11 +6,12 @@ proc import datafile="/home/sas/44a001478710899/sasdata/sasdata1/allowed_nirs.cs
     getnames=yes;
 run;
 
-/* 2. Create the macro to loop through the years 15 to 19 */
-%macro extract_rip_data;
+/* 2. Macro to loop through years 15 to 20 for BOTH RIP and MCO tables */
+%macro extract_all_data;
     proc sql;
-    %do year = 15 %to 19;
+    %do year = 15 %to 20;
         
+        /* --- Extract RIP Data --- */
         create table work.rip_extract_20&year. as 
         select 
             main.NIR_ANO_17, 
@@ -23,9 +24,22 @@ run;
         on 
             main.NIR_ANO_17 = filter.NIR_ANO_17;
             
+        /* --- Extract MCO Data --- */
+        create table work.mco_extract_20&year. as 
+        select 
+            main.NIR_ANO_17, 
+            main.EXE_SOI_DTD, 
+            main.EXE_SOI_DTF
+        from 
+            oravue.T_MCO&year.C as main   /* Note the underscore structure: T_MCOxxC */
+        inner join 
+            work.allowed_nirs as filter
+        on 
+            main.NIR_ANO_17 = filter.NIR_ANO_17;
+            
     %end;
     quit;
-%mend extract_rip_data;
+%mend extract_all_data;
 
 /* 3. Execute the loop */
-%extract_rip_data;
+%extract_all_data;
