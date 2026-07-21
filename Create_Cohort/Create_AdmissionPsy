@@ -18,6 +18,8 @@ run;
             main.EXE_SOI_DTD, 
             main.EXE_SOI_DTF, 
             for_dx.DGN_PAL,
+            for_dx.AGE_ANN,
+            for_dx.FOR_ACT,
             which_cim.CIM_LIL
         from 
             oravue.T_RIP&year.C as main
@@ -60,6 +62,7 @@ run;
             main.EXE_SOI_DTD, 
             main.EXE_SOI_DTF,
             for_dx.DGN_PAL,
+            for_dx.AGE_ANN,
             which_cim.CIM_LIL
         from 
             oravue.T_MCO&year.C as main 
