@@ -20,6 +20,9 @@ run;
             for_dx.DGN_PAL,
             for_dx.AGE_ANN,
             for_dx.FOR_ACT,
+            for_dx.DEL_DAT,
+            for_dx.PRE_JOU_NBJ,
+
             which_cim.CIM_LIL
         from 
             oravue.T_RIP&year.C as main
@@ -42,9 +45,10 @@ run;
 '920100013', '920100021', '920100039', '920100047', '920100054', '920100062', '930100011', '930100037', '930100045', 
 '940100027', '940100035', '940100043', '940100050', '940100068', '950100016', '690783154', '690784137', '690784152', 
 '690784178', '690787478', '830100558')
-            /* Note: Removed GRG_GHM filter here since RIP uses GME system instead 
+            /* Note: Removed GRG_GHM filter here since RIP uses GME system instead */
+	        and for_dx.TYP_GEN_RSA = '0'
             and for_dx.ENT_MOD <> '0' 
-            and for_dx.SOR_MOD <> '0' */
+            and for_dx.SOR_MOD <> '0' 
             and main.NIR_ANO_17 not in ('xxxxxxxxxxxxxxxxx', 'BXXXXXXXXXXXXXXXX') 
             and main.NIR_RET = '0' 
             and main.NAI_RET = '0' 
