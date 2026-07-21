@@ -20,7 +20,7 @@ run;
             for_dx.DGN_PAL,
             for_dx.AGE_ANN,
             for_dx.FOR_ACT,
-            for_dx.DEL_DAT,
+            for_dx.DEL_DAT, /* DEL_DAT till 2019 and ENT_DEL_DAT afterwards */
             for_dx.PRE_JOU_NBJ,
 
             which_cim.CIM_LIL
