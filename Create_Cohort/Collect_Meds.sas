@@ -96,7 +96,7 @@ quit;
 
 /* ==============================================================================
    3. NEXT STEPS
-   - create anticohort
+   - collect meds be4
    - collect data on admissions and max_trt_dtd
    - further cohort cleaning on R eg only include those on ATD (incident 2015-2017 with 1 year w/o) without previous AEpi/APsych/Admissions) 
    ============================================================================== */
