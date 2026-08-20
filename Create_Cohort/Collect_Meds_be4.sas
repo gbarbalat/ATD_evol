@@ -42,6 +42,13 @@
                 ref.PHA_UPC_NBR
                 
             from oravue.ER_PRS_F as prs
+
+            /* ------------------------------------------------------------------------- */
+            /* Join to the cohort created in Collect_Meds.sas                            */
+            /* ------------------------------------------------------------------------- */
+            inner join work.filtered_treatment_cohort as flt
+                on  prs.BEN_NIR_PSA = flt.BEN_NIR_PSA
+                and prs.BEN_RNG_GEM = flt.BEN_RNG_GEM
             
             inner join oravue.ER_PHA_F as pha
                 on  prs.FLX_DIS_DTD = pha.FLX_DIS_DTD
@@ -58,7 +65,7 @@
                 on pha.PHA_PRS_C13 = ref.PHA_RGE_C13 /* Kept the corrected CIP13 join column */
                 
             where prs.EXE_SOI_DTD '31Dec2014'd
-               and prs.FLX_DIS_DTD = "&sql_date"d    /* Dynamically updates every loop step */
+               and prs.FLX_DIS_DTD <= "&sql_date"d    /* Dynamically updates every loop step */
                and prs.BEN_SEX_COD = 2
                and (
                   ref.PHA_ATC_CLA like 'N05A%' /* AP + Li */
@@ -75,7 +82,7 @@
 %mend extract_monthly_cohorts;
 
 /* Run the macro loop engine */
-%extract_monthly_cohorts(01Feb2013, 01Jul2015);
+%extract_monthly_cohorts(01Jan1975, 01Jul2015);
 
 
 /* ==============================================================================
