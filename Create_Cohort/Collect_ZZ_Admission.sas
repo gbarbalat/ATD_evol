@@ -9,7 +9,7 @@ run;
 /* 2. Macro to loop through years 07 to 20 for RIP tables */
 %macro extract_RIP_data;
     proc sql;
-    %do year = 07 %to 20;
+    %do year = 07 %to 19;
 
 		/* Two-digit zero-padded year format for table names (e.g., 07, 08, 09) */
         %let yr = %sysfunc(putn(&year., z2.));
@@ -26,7 +26,6 @@ run;
             for_dx.DEL_DAT, /* DEL_DAT till 2019 and ENT_DEL_DAT afterwards */
             for_dx.PRE_JOU_NBJ,
 			for_dx.PRE_DEM_JOU_NBJ,
-			
             which_cim.CIM_LIL
         from 
             oravue.T_RIP&yr.C as main
@@ -38,12 +37,9 @@ run;
             oraval.MS_CIM_V as which_cim
         on 
             for_dx.DGN_PAL = which_cim.CIM_COD
-        inner join 
-            work.allowed_nirs as filter
-        on 
-            main.NIR_ANO_17 = filter.NIR_ANO_17
         where 
-            for_dx.ETA_NUM_EPMSI not in ('130780521', '130783236', '130783293', '130784234', '130804297','600100101', '750041543',
+			main.NIR_ANO_17 in (select NIR_ANO_17 from work.allowed_nirs)
+            and for_dx.ETA_NUM_EPMSI not in ('130780521', '130783236', '130783293', '130784234', '130804297','600100101', '750041543',
 '750100018', '750100042', '750100075', '750100083', '750100091', '750100109', '750100125', '750100166', '750100208', 
 '750100216', '750100232', '750100273', '750100299' , '750801441', '750803447', '750803454', '910100015', '910100023', 
 '920100013', '920100021', '920100039', '920100047', '920100054', '920100062', '930100011', '930100037', '930100045', 
@@ -72,7 +68,7 @@ run;
 /* 3. Extract MCO, SSR and HAD data */
 %macro extract_OTHER_data;
     proc sql;
-    %do year = 15 %to 20;
+    %do year = 15 %to 19;
 	
 	/* --- Extract MCO Data --- */
         create table work.mco_extract_20&year. as 
@@ -93,12 +89,9 @@ run;
             oraval.MS_CIM_V as which_cim
         on 
             for_dx.DGN_PAL = which_cim.CIM_COD
-        inner join 
-            work.allowed_nirs as filter
-        on 
-            main.NIR_ANO_17 = filter.NIR_ANO_17
         where 
-            for_dx.ETA_NUM not in ('130780521', '130783236', '130783293', '130784234', '130804297','600100101', '750041543',
+			main.NIR_ANO_17 in (select NIR_ANO_17 from work.allowed_nirs)
+            and for_dx.ETA_NUM not in ('130780521', '130783236', '130783293', '130784234', '130804297','600100101', '750041543',
 '750100018', '750100042', '750100075', '750100083', '750100091', '750100109', '750100125', '750100166', '750100208', 
 '750100216', '750100232', '750100273', '750100299' , '750801441', '750803447', '750803454', '910100015', '910100023', 
 '920100013', '920100021', '920100039', '920100047', '920100054', '920100062', '930100011', '930100037', '930100045', 
@@ -128,12 +121,9 @@ run;
             oravue.T_SSR&year.B as for_dx
         on 
             main.ETA_NUM = for_dx.ETA_NUM AND main.RHA_NUM = for_dx.RHA_NUM
-        inner join 
-            work.allowed_nirs as filter
-        on 
-            main.NIR_ANO_17 = filter.NIR_ANO_17
         where 
-            for_dx.ETA_NUM not in ('130780521', '130783236', '130783293', '130784234', '130804297','600100101', '750041543',
+			main.NIR_ANO_17 in (select NIR_ANO_17 from work.allowed_nirs)
+			and for_dx.ETA_NUM not in ('130780521', '130783236', '130783293', '130784234', '130804297','600100101', '750041543',
 '750100018', '750100042', '750100075', '750100083', '750100091', '750100109', '750100125', '750100166', '750100208', 
 '750100216', '750100232', '750100273', '750100299' , '750801441', '750803447', '750803454', '910100015', '910100023', 
 '920100013', '920100021', '920100039', '920100047', '920100054', '920100062', '930100011', '930100037', '930100045', 
@@ -161,12 +151,9 @@ run;
             oravue.T_HAD&year.B as for_dx
         on 
             main.ETA_NUM_EPMSI = for_dx.ETA_NUM_EPMSI AND main.RHAD_NUM = for_dx.RHAD_NUM
-        inner join 
-            work.allowed_nirs as filter
-        on 
-            main.NIR_ANO_17 = filter.NIR_ANO_17
         where 
-            for_dx.ETA_NUM_EPMSI not in ('130780521', '130783236', '130783293', '130784234', '130804297','600100101', '750041543',
+			main.NIR_ANO_17 in (select NIR_ANO_17 from work.allowed_nirs)
+            and for_dx.ETA_NUM_EPMSI not in ('130780521', '130783236', '130783293', '130784234', '130804297','600100101', '750041543',
 '750100018', '750100042', '750100075', '750100083', '750100091', '750100109', '750100125', '750100166', '750100208', 
 '750100216', '750100232', '750100273', '750100299' , '750801441', '750803447', '750803454', '910100015', '910100023', 
 '920100013', '920100021', '920100039', '920100047', '920100054', '920100062', '930100011', '930100037', '930100045', 
@@ -202,5 +189,5 @@ run;
 
 /* 6. Clean up temporary annual tables to free up SAS work library space */
 proc datasets library=work nolist;
-    delete rip_extract_: mco_extract_:;
+	delete rip_extract_: mco_extract_: ssr_extract_: had_extract_:;
 quit;
