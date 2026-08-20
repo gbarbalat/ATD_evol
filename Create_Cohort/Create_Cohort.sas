@@ -47,7 +47,7 @@
                and (
                       ref.PHA_ATC_CLA like 'N05A%' /* AP + Li */
                    or ref.PHA_ATC_CLA like 'N05B%' /* Anxiol */
-                   or ref.PHA_ATC_CLA like 'N05C%' /* Sleeping pills */
+                   or ref.PHA_ATC_CLA like 'N05C%' /* Hypn-Sed */
                    or ref.PHA_ATC_CLA like 'N06A%' /* ATD - Forget about N06C = Tricyclic + BZD or NLP (too old) */
                    or ref.PHA_ATC_CLA like 'N03A%' /* AntiEpi */
                );               
@@ -93,3 +93,10 @@ run;
 proc datasets library=work nolist;
     delete cohort_:;
 quit;
+
+/* ==============================================================================
+   3. NEXT STEPS
+   - create anticohort
+   - collect data on admissions and max_trt_dtd
+   - further cohort cleaning on R eg only include those on ATD (incident 2015-2017 with 1 year w/o) without previous AEpi/APsych/Admissions) 
+   ============================================================================== */
