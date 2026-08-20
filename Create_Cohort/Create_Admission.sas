@@ -6,13 +6,16 @@ proc import datafile="/home/sas/44a001478710899/sasdata/sasdata1/allowed_nirs.cs
     getnames=yes;
 run;
 
-/* 2. Macro to loop through years 15 to 20 for BOTH RIP and MCO tables */
-%macro extract_all_data;
+/* 2. Macro to loop through years 07 to 20 for RIP tables */
+%macro extract_RIP_data;
     proc sql;
-    %do year = 15 %to 20;
-        
+    %do year = 07 %to 20;
+
+		/* Two-digit zero-padded year format for table names (e.g., 07, 08, 09) */
+        %let yr = %sysfunc(putn(&year., z2.));
+		
         /* --- Extract RIP Data --- */
-        create table work.rip_extract_20&year. as 
+        create table work.rip_extract_20&yr. as 
         select 
             main.NIR_ANO_17, 
             main.EXE_SOI_DTD, 
@@ -22,12 +25,13 @@ run;
             for_dx.FOR_ACT,
             for_dx.DEL_DAT, /* DEL_DAT till 2019 and ENT_DEL_DAT afterwards */
             for_dx.PRE_JOU_NBJ,
-
+			for_dx.PRE_DEM_JOU_NBJ,
+			
             which_cim.CIM_LIL
         from 
-            oravue.T_RIP&year.C as main
+            oravue.T_RIP&yr.C as main
         inner join 
-            oravue.T_RIP&year.RSA as for_dx
+            oravue.T_RIP&yr.RSA as for_dx
         on 
             main.ETA_NUM_EPMSI = for_dx.ETA_NUM_EPMSI AND main.RIP_NUM = for_dx.RIP_NUM
         left join 
@@ -61,7 +65,16 @@ run;
 			and main.COH_SEX_RET = '0'
 			and main.SEQ_IND <> 'E';/* Sorties d'essai*/
 
-        /* --- Extract MCO Data --- */
+ 	%end;
+    quit;
+%mend extract_RIP_data;
+
+/* 3. Extract MCO, SSR and HAD data */
+%macro extract_RIP_data;
+    proc sql;
+    %do year = 15 %to 20;
+	
+	/* --- Extract MCO Data --- */
         create table work.mco_extract_20&year. as 
         select 
             main.NIR_ANO_17, 
@@ -107,5 +120,23 @@ run;
     quit;
 %mend extract_all_data;
 
-/* 3. Execute the loop */
-%extract_all_data;
+/* 4. Run both extraction macros */
+%extract_RIP_data;
+%extract_OTHER_data;
+
+/* 5. Stack all annual RIP and MCO datasets into one master table */
+data work.master_hospital_extract;
+    set work.rip_extract_: 
+        work.mco_extract_:;
+run;
+
+/* 6. Clean up temporary annual tables to free up SAS work library space */
+proc datasets library=work nolist;
+    delete rip_extract_: mco_extract_:;
+quit;
+
+
+
+
+
+
