@@ -9,7 +9,7 @@ run;
 /* 2. Macro to loop through years 07 to 20 for RIP tables */
 %macro extract_RIP_data;
     proc sql;
-    %do year =  %to 19; /* EXE_SOI_DTD first go in  */
+    %do year = 08 %to 19;
 
 		/* Two-digit zero-padded year format for table names (e.g., 07, 08, 09) */
         %let yr = %sysfunc(putn(&year., z2.));
@@ -22,7 +22,16 @@ run;
             main.EXE_SOI_DTF, 
             for_dx.DGN_PAL,
             for_dx.AGE_ANN,
-            for_dx.FOR_ACT,
+
+			/* --- Dynamic Variable Handling --- */
+            %if %eval(&year < 11) %then %do;
+                '' length=10 as FOR_ACT,
+            %end;
+            %else %do;
+                for_dx.FOR_ACT,
+            %end;
+
+			
             for_dx.DEL_DAT, /* DEL_DAT till 2019 and ENT_DEL_DAT afterwards */
             for_dx.PRE_JOU_NBJ,
 			for_dx.PRE_DEM_JOU_NBJ,
