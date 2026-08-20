@@ -70,7 +70,7 @@ run;
 %mend extract_RIP_data;
 
 /* 3. Extract MCO, SSR and HAD data */
-%macro extract_RIP_data;
+%macro extract_OTHER_data;
     proc sql;
     %do year = 15 %to 20;
 	
@@ -115,10 +115,78 @@ run;
             and main.FHO_RET = '0'  
             and main.PMS_RET = '0' 
             and main.DAT_RET = '0';
-                     
+
+
+	/* --- Extract SSR Data --- */
+        create table work.ssr_extract_20&year. as 
+        select 
+            main.NIR_ANO_17, 
+            main.EXE_SOI_DTD
+        from 
+            oravue.T_SSR&year.C as main 
+        inner join 
+            oravue.T_SSR&year.B as for_dx
+        on 
+            main.ETA_NUM = for_dx.ETA_NUM AND main.RHA_NUM = for_dx.RHA_NUM
+        inner join 
+            work.allowed_nirs as filter
+        on 
+            main.NIR_ANO_17 = filter.NIR_ANO_17
+        where 
+            for_dx.ETA_NUM not in ('130780521', '130783236', '130783293', '130784234', '130804297','600100101', '750041543',
+'750100018', '750100042', '750100075', '750100083', '750100091', '750100109', '750100125', '750100166', '750100208', 
+'750100216', '750100232', '750100273', '750100299' , '750801441', '750803447', '750803454', '910100015', '910100023', 
+'920100013', '920100021', '920100039', '920100047', '920100054', '920100062', '930100011', '930100037', '930100045', 
+'940100027', '940100035', '940100043', '940100050', '940100068', '950100016', '690783154', '690784137', '690784152', 
+'690784178', '690787478', '830100558')
+            and for_dx.ENT_MOD <> '0' 
+            and for_dx.SOR_MOD <> '0'
+            and main.NIR_ANO_17 not in ('xxxxxxxxxxxxxxxxx', 'BXXXXXXXXXXXXXXXX') 
+            and main.NIR_RET = '0' 
+            and main.NAI_RET = '0' 
+            and main.SEX_RET = '0' 
+            and main.SEJ_RET = '0' 
+            and main.FHO_RET = '0'  
+            and main.PMS_RET = '0' 
+            and main.DAT_RET = '0';
+
+		/* --- Extract HAD Data --- */
+        create table work.had_extract_20&year. as 
+        select 
+            main.NIR_ANO_17, 
+            main.EXE_SOI_DTD
+        from 
+            oravue.T_HAD&year.C as main 
+        inner join 
+            oravue.T_HAD&year.B as for_dx
+        on 
+            main.ETA_NUM_EPMSI = for_dx.ETA_NUM_EPMSI AND main.RHAD_NUM = for_dx.RHAD_NUM
+        inner join 
+            work.allowed_nirs as filter
+        on 
+            main.NIR_ANO_17 = filter.NIR_ANO_17
+        where 
+            for_dx.ETA_NUM_EPMSI not in ('130780521', '130783236', '130783293', '130784234', '130804297','600100101', '750041543',
+'750100018', '750100042', '750100075', '750100083', '750100091', '750100109', '750100125', '750100166', '750100208', 
+'750100216', '750100232', '750100273', '750100299' , '750801441', '750803447', '750803454', '910100015', '910100023', 
+'920100013', '920100021', '920100039', '920100047', '920100054', '920100062', '930100011', '930100037', '930100045', 
+'940100027', '940100035', '940100043', '940100050', '940100068', '950100016', '690783154', '690784137', '690784152', 
+'690784178', '690787478', '830100558')
+            and for_dx.ENT_MOD <> '0' 
+            and for_dx.SOR_MOD <> '0'
+            and main.NIR_ANO_17 not in ('xxxxxxxxxxxxxxxxx', 'BXXXXXXXXXXXXXXXX') 
+            and main.NIR_RET = '0' 
+            and main.NAI_RET = '0' 
+            and main.SEX_RET = '0' 
+            and main.SEJ_RET = '0' 
+            and main.FHO_RET = '0'  
+            and main.PMS_RET = '0' 
+            and main.DAT_RET = '0';
+
+					 
     %end;
     quit;
-%mend extract_all_data;
+%mend extract_OTHER_data;
 
 /* 4. Run both extraction macros */
 %extract_RIP_data;
@@ -127,16 +195,12 @@ run;
 /* 5. Stack all annual RIP and MCO datasets into one master table */
 data work.master_hospital_extract;
     set work.rip_extract_: 
-        work.mco_extract_:;
+        work.mco_extract_:
+		work.ssr_extract_:
+		work.had_extract_:;
 run;
 
 /* 6. Clean up temporary annual tables to free up SAS work library space */
 proc datasets library=work nolist;
     delete rip_extract_: mco_extract_:;
 quit;
-
-
-
-
-
-
