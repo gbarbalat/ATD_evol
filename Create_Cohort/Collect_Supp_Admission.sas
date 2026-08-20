@@ -9,7 +9,7 @@ run;
 /* 2. Macro to loop through years 07 to 20 for RIP tables */
 %macro extract_RIP_data;
     proc sql;
-    %do year = 08 %to 19;
+    %do year =  %to 19; /* EXE_SOI_DTD first go in  */
 
 		/* Two-digit zero-padded year format for table names (e.g., 07, 08, 09) */
         %let yr = %sysfunc(putn(&year., z2.));
