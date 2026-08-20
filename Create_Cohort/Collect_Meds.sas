@@ -43,7 +43,7 @@
             where prs.EXE_SOI_DTD between '01Jan2015'd and '31Dec2019'd
                and prs.FLX_DIS_DTD = "&sql_date"d    
                and prs.BEN_SEX_COD = 2
-               and prs.BEN_AMA_COD between 19 and 39
+               and prs.BEN_AMA_COD between 18 and 39
                and (
                       ref.PHA_ATC_CLA like 'N05A%' /* AP + Li */
                    or ref.PHA_ATC_CLA like 'N05B%' /* Anxiol */
