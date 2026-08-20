@@ -56,8 +56,10 @@ run;
             and main.SEJ_RET = '0' 
             and main.FHO_RET = '0'  
             and main.PMS_RET = '0' 
-            and main.DAT_RET = '0';
-
+            and main.DAT_RET = '0'
+			and main.COH_NAI_RET = '0'
+			and main.COH_SEX_RET = '0'
+			and main.SEQ_IND <> 'E';/* Sorties d'essai*/
 
         /* --- Extract MCO Data --- */
         create table work.mco_extract_20&year. as 
