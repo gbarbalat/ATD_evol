@@ -1,5 +1,5 @@
 /* ==============================================================================
-   1. DEFINE THE MACRO TO GENERATE AND RUN THE MONTHLY QUERIES WITH FAST FILTERING
+   1. DEFINE THE MACRO TO GENERATE AND RUN THE MONTHLY QUERIES
    ============================================================================== */
 %macro extract_monthly_cohorts(start_date, end_date);
     
@@ -10,13 +10,13 @@
     /* Loop month by month until we pass the end date */
     %do %while (&current_date <= &final_date);
         
-        /* Format the macro dates for the table names and SQL literals */
+        /* Format the macro dates for table names and SQL literals */
         %let suffix   = %sysfunc(putn(&current_date, yymmddn6.)); 
         %let sql_date = %sysfunc(putn(&current_date, date9.));    
         
-        /* STEP A: Fast Database Extraction */
+        /* STEP A: Fast Database Extraction directly to monthly cohort tables */
         proc sql;
-            create table work.raw_&suffix as
+            create table work.cohort_&suffix as
             select 
                 prs.EXE_SOI_DTD, prs.FLX_DIS_DTD, prs.BEN_SEX_COD, prs.BEN_AMA_COD,
                 prs.BEN_DCD_DTE, prs.BEN_NIR_PSA, prs.BEN_RNG_GEM, prs.BEN_RES_DPT,
@@ -40,7 +40,7 @@
             inner join oravue.IR_PHA_R as ref
                 on pha.PHA_PRS_C13 = ref.PHA_RGE_C13 
                 
-            where prs.EXE_SOI_DTD between '01Jan2015'd and '31Dec2019'd
+            where prs.EXE_SOI_DTD between '01Jan2015'd and '31Jan2015'd
                and prs.FLX_DIS_DTD = "&sql_date"d    
                and prs.BEN_SEX_COD = 2
                and prs.BEN_AMA_COD between 18 and 39
@@ -50,34 +50,16 @@
                    or ref.PHA_ATC_CLA like 'N05C%' /* Hypn-Sed */
                    or ref.PHA_ATC_CLA like 'N06A%' /* ATD - Forget about N06C = Tricyclic + BZD or NLP (too old) */
                    or ref.PHA_ATC_CLA like 'N03A%' /* AntiEpi */
-               );               
-        quit;
-        
-        /* STEP B: In-Memory RAM Filtering (The Speed Booster) NO! you'll do it on R
-        data work.cohort_&suffix;
-            if _n_ = 1 then do;
-                declare hash h(dataset:'work.final_treatment_anticohort');
-                h.defineKey('BEN_NIR_PSA', 'BEN_RNG_GEM');
-                h.defineDone();
-            end;
-            
-            set work.raw_&suffix;
-            
-            if h.find() ne 0; 
-        run; */
-        
-        /* Clean up raw intermediate tables to keep the work library clean */
-        proc datasets library=work nolist;
-            delete raw_&suffix;
+               );                
         quit;
         
         /* Advance the loop tracker forward by exactly 1 month */
-        %let current_date = %sysfunc(intnx(month, &current_date, 1, same));
+        %let current_date = %sysfunc(intnx(month, &current_date, 1, s));
     %end;
 %mend extract_monthly_cohorts;
 
 /* Run the macro loop engine */
-%extract_monthly_cohorts(01Feb2015, 01Jul2020);
+%extract_monthly_cohorts(01Feb2015, 01Jul2015);
 
 
 /* ==============================================================================
@@ -91,10 +73,3 @@ run;
 proc datasets library=work nolist;
     delete cohort_:;
 quit;
-
-/* ==============================================================================
-   3. NEXT STEPS
-   - collect meds be4
-   - collect data on admissions and max_trt_dtd
-   - further cohort cleaning on R eg only include those on ATD (incident 2015-2017 with 1 year w/o) without previous AEpi/APsych/Admissions) 
-   ============================================================================== */
