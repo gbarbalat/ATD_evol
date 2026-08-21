@@ -14,7 +14,7 @@
         %let suffix   = %sysfunc(putn(&current_date, yymmddn6.)); 
         %let sql_date = %sysfunc(putn(&current_date, date9.));    
         
-        /* STEP A: Fast Database Extraction (No Anti-Cohort checking here) */
+        /* STEP A: Fast Database Extraction */
         proc sql;
             create table work.raw_&suffix as
             select 
@@ -53,10 +53,9 @@
                );               
         quit;
         
-        /* STEP B: In-Memory RAM Filtering (The Speed Booster) */
+        /* STEP B: In-Memory RAM Filtering (The Speed Booster) NO! you'll do it on R
         data work.cohort_&suffix;
             if _n_ = 1 then do;
-                /* Load anti-cohort identifiers directly into a lightning-fast RAM index */
                 declare hash h(dataset:'work.final_treatment_anticohort');
                 h.defineKey('BEN_NIR_PSA', 'BEN_RNG_GEM');
                 h.defineDone();
@@ -64,9 +63,8 @@
             
             set work.raw_&suffix;
             
-            /* If the key matches the anti-cohort hash map, immediately drop it */
             if h.find() ne 0; 
-        run;
+        run; */
         
         /* Clean up raw intermediate tables to keep the work library clean */
         proc datasets library=work nolist;
