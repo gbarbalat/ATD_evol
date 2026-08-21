@@ -64,8 +64,8 @@
             inner join oravue.IR_PHA_R as ref
                 on pha.PHA_PRS_C13 = ref.PHA_RGE_C13 /* Kept the corrected CIP13 join column */
                 
-            where prs.EXE_SOI_DTD '31Dec2014'd
-               and prs.FLX_DIS_DTD <= "&sql_date"d    /* Dynamically updates every loop step */
+            where prs.EXE_SOI_DTD <= '31Dec2014'd
+               and prs.FLX_DIS_DTD = "&sql_date"d    /* Dynamically updates every loop step */
                and prs.BEN_SEX_COD = 2
                and (
                   ref.PHA_ATC_CLA like 'N05A%' /* AP + Li */
