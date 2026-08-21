@@ -40,7 +40,7 @@
             inner join oravue.IR_PHA_R as ref
                 on pha.PHA_PRS_C13 = ref.PHA_RGE_C13 
                 
-            where prs.EXE_SOI_DTD between '01Jan2015'd and '31Jan2015'd
+            where prs.EXE_SOI_DTD between '01Jan2015'd and '31Jan2019'd
                and prs.FLX_DIS_DTD = "&sql_date"d    
                and prs.BEN_SEX_COD = 2
                and prs.BEN_AMA_COD between 18 and 39
@@ -59,7 +59,7 @@
 %mend extract_monthly_cohorts;
 
 /* Run the macro loop engine */
-%extract_monthly_cohorts(01Feb2015, 01Jul2015);
+%extract_monthly_cohorts(01Feb2015, 01Jul2020);
 
 
 /* ==============================================================================
