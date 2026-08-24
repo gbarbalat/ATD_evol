@@ -1,12 +1,9 @@
 /* ==============================================================================
    1. MACRO TO LOOP THROUGH YEARS 08 TO 19 FOR RIP TABLES
    ============================================================================== */
-/* ==============================================================================
-   1. MACRO TO LOOP THROUGH YEARS 16 TO 19 FOR RIP TABLES
-   ============================================================================== */
 %macro extract_RIP_data;
     proc sql;
-    %do year = 16 %to 19;
+    %do year = 09 %to 19;
 
         %let yr = %sysfunc(putn(&year., z2.));
         
@@ -44,7 +41,7 @@
                 for_dx.TYP_GEN_RSA,
             %end;
 
-            /* --- SEQ_IND (Appears in 2016 / year >= 16) --- */
+            /* --- SEQ_IND (Appears in 2020 / year >= 20) --- */
             %if %eval(&year < 20) %then %do;
                 '' as SEQ_IND,
             %end;
