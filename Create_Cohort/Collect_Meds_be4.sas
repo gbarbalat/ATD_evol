@@ -95,7 +95,7 @@
 %mend extract_monthly_cohorts;
 
 /* Run the macro loop engine */
-%extract_monthly_cohorts(01Feb1975, 01Jun2015);
+%extract_monthly_cohorts(01Feb1975, 01Jul2015);
 
 
 /* ==============================================================================
