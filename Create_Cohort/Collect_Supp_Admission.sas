@@ -1,14 +1,15 @@
 /* ==============================================================================
    1. MACRO TO LOOP THROUGH YEARS 08 TO 19 FOR RIP TABLES
    ============================================================================== */
+/* ==============================================================================
+   1. MACRO TO LOOP THROUGH YEARS 16 TO 19 FOR RIP TABLES
+   ============================================================================== */
 %macro extract_RIP_data;
     proc sql;
-    %do year = 09 %to 10;
+    %do year = 16 %to 19;
 
-        /* Two-digit zero-padded year format for table names (e.g., 07, 08, 09) */
         %let yr = %sysfunc(putn(&year., z2.));
         
-        /* --- Extract RIP Data --- */
         create table work.rip_extract_20&yr. as 
         select 
             main.NIR_ANO_17, 
@@ -17,15 +18,41 @@
             for_dx.DGN_PAL,
             for_dx.AGE_ANN,
 
-            /* --- Dynamic Variable Handling --- */
-            %if %eval(&year < 11) %then %do;
+            /* --- FOR_ACT (Appears in 2012 / year >= 12) --- */
+            %if %eval(&year < 12) %then %do;
                 '' length=10 as FOR_ACT,
             %end;
             %else %do;
                 for_dx.FOR_ACT,
             %end;
 
-            for_dx.DEL_DAT, /* DEL_DAT till 2019 and ENT_DEL_DAT afterwards */
+            /* --- COH_NAI_RET, COH_SEX_RET (Appear in 2014 / year >= 14) --- */
+            %if %eval(&year < 14) %then %do;
+                '0' as COH_NAI_RET,
+                '0' as COH_SEX_RET,
+            %end;
+            %else %do;
+                main.COH_NAI_RET,
+                main.COH_SEX_RET,
+            %end;
+
+            /* --- TYP_GEN_RSA (Appears in 2015 / year >= 15) --- */
+            %if %eval(&year < 15) %then %do;
+                '0' as TYP_GEN_RSA,
+            %end;
+            %else %do;
+                for_dx.TYP_GEN_RSA,
+            %end;
+
+            /* --- SEQ_IND (Appears in 2016 / year >= 16) --- */
+            %if %eval(&year < 20) %then %do;
+                '' as SEQ_IND,
+            %end;
+            %else %do;
+                main.SEQ_IND,
+            %end;
+
+            for_dx.DEL_DAT,
             for_dx.PRE_JOU_NBJ,
             for_dx.PRE_DEM_JOU_NBJ,
             which_cim.CIM_LIL
@@ -36,19 +63,35 @@
         on 
             main.ETA_NUM_EPMSI = for_dx.ETA_NUM_EPMSI AND main.RIP_NUM = for_dx.RIP_NUM
         left join 
-                        oraval.MS_CIM_V as which_cim
-  
+            oraval.MS_CIM_V as which_cim
         on 
             for_dx.DGN_PAL = which_cim.CIM_COD
         where 
             main.NIR_ANO_17 in (select distinct BEN_NIR_PSA from work.filtered_treatment_cohort)
-            and for_dx.ETA_NUM_EPMSI not in ('130780521', '130783236', '130783293', '130784234', '130804297','600100101', '750041543',
-'750100018', '750100042', '750100075', '750100083', '750100091', '750100109', '750100125', '750100166', '750100208', 
-'750100216', '750100232', '750100273', '750100299' , '750801441', '750803447', '750803454', '910100015', '910100023', 
-'920100013', '920100021', '920100039', '920100047', '920100054', '920100062', '930100011', '930100037', '930100045', 
-'940100027', '940100035', '940100043', '940100050', '940100068', '950100016', '690783154', '690784137', '690784152', 
-'690784178', '690787478', '830100558')
-            and for_dx.TYP_GEN_RSA = '0'
+            and for_dx.ETA_NUM_EPMSI not in (
+                '130780521', '130783236', '130783293', '130784234', '130804297', '600100101', '750041543',
+                '750100018', '750100042', '750100075', '750100083', '750100091', '750100109', '750100125', 
+                '750100166', '750100208', '750100216', '750100232', '750100273', '750100299', '750801441', 
+                '750803447', '750803454', '910100015', '910100023', '920100013', '920100021', '920100039', 
+                '920100047', '920100054', '920100062', '930100011', '930100037', '930100045', '940100027', 
+                '940100035', '940100043', '940100050', '940100068', '950100016', '690783154', '690784137', 
+                '690784152', '690784178', '690787478', '830100558'
+            )
+
+            /* Dynamic filters applied based on column existence */
+            %if %eval(&year >= 14) %then %do;
+                and main.COH_NAI_RET = '0'
+                and main.COH_SEX_RET = '0'
+            %end;
+
+            %if %eval(&year >= 15) %then %do;
+                and for_dx.TYP_GEN_RSA = '0'
+            %end;
+
+            %if %eval(&year >= 20) %then %do;
+                and main.SEQ_IND <> 'E'
+            %end;
+
             and for_dx.ENT_MOD <> '0' 
             and for_dx.SOR_MOD <> '0' 
             and main.NIR_ANO_17 not in ('xxxxxxxxxxxxxxxxx', 'BXXXXXXXXXXXXXXXX') 
@@ -58,14 +101,13 @@
             and main.SEJ_RET = '0' 
             and main.FHO_RET = '0'  
             and main.PMS_RET = '0' 
-            and main.DAT_RET = '0'
-            and main.COH_NAI_RET = '0'
-            and main.COH_SEX_RET = '0'
-            and main.SEQ_IND <> 'E'; /* Sorties d'essai */
+            and main.DAT_RET = '0';
 
     %end;
     quit;
 %mend extract_RIP_data;
+
+%extract_RIP_data;
 
 
 /* ==============================================================================
