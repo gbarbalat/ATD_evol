@@ -14,8 +14,9 @@
         %let suffix   = %sysfunc(putn(&current_date, yymmddn6.)); /* e.g., 20150201 -> 150201 */
         %let sql_date = %sysfunc(putn(&current_date, date9.));    /* e.g., 01FEB2015 */
         
+        /* STEP A: Fast Database Extraction (No Local Joins) */
         proc sql;
-            create table work.cohort_&suffix as
+            create table work.raw_&suffix as
             select 
                 /* Variables from ER_PRS_F */
                 prs.EXE_SOI_DTD,
@@ -43,13 +44,6 @@
                 
             from oravue.ER_PRS_F as prs
 
-            /* ------------------------------------------------------------------------- */
-            /* Join to the cohort created in Collect_Meds.sas                            */
-            /* ------------------------------------------------------------------------- */
-            inner join work.filtered_treatment_cohort as flt
-                on  prs.BEN_NIR_PSA = flt.BEN_NIR_PSA
-                and prs.BEN_RNG_GEM = flt.BEN_RNG_GEM
-            
             inner join oravue.ER_PHA_F as pha
                 on  prs.FLX_DIS_DTD = pha.FLX_DIS_DTD
                 and prs.FLX_TRT_DTD = pha.FLX_TRT_DTD
@@ -62,39 +56,56 @@
                 and prs.REM_TYP_AFF = pha.REM_TYP_AFF
                 
             inner join oravue.IR_PHA_R as ref
-                on pha.PHA_PRS_C13 = ref.PHA_RGE_C13 /* Kept the corrected CIP13 join column */
+                on pha.PHA_PRS_C13 = ref.PHA_RGE_C13
                 
-            where prs.EXE_SOI_DTD <= '31Dec2014'd
-               and prs.FLX_DIS_DTD = "&sql_date"d    /* Dynamically updates every loop step */
+            where prs.EXE_SOI_DTD between '01Jan1975'd and '31Dec2014'd
+               and prs.FLX_DIS_DTD = "&sql_date"d
                and prs.BEN_SEX_COD = 2
                and (
-                  ref.PHA_ATC_CLA like 'N05A%' /* AP + Li */
-               or ref.PHA_ATC_CLA like 'N06BA%'  /* Stimulants */
-               or ref.PHA_ATC_CLA like 'N06C%'  /* ATD+ */
-               or ref.PHA_ATC_CLA like 'N06A%' /* ATD */
-               or ref.PHA_ATC_CLA like 'N03A%' /* AntiEpi */
+                  ref.PHA_ATC_CLA like 'N05A%'
+               or ref.PHA_ATC_CLA like 'N06BA%'
+               or ref.PHA_ATC_CLA like 'N06C%'
+               or ref.PHA_ATC_CLA like 'N06A%'
+               or ref.PHA_ATC_CLA like 'N03A%'
                );               
         quit;
         
+        /* STEP B: Fast In-Memory Hash Filter */
+        data work.cohort_&suffix;
+            if _n_ = 1 then do;
+                declare hash h(dataset:'work.filtered_treatment_cohort');
+                h.defineKey('BEN_NIR_PSA', 'BEN_RNG_GEM');
+                h.defineDone();
+            end;
+            
+            set work.raw_&suffix;
+            
+            /* Keep ONLY rows that match the keys in work.filtered_treatment_cohort */
+            if h.find() = 0; 
+        run;
+
+        /* Clean up raw intermediate tables to save space */
+        proc datasets library=work nolist;
+            delete raw_&suffix;
+        quit;
+
         /* Advance the loop tracker forward by exactly 1 month */
-        %let current_date = %sysfunc(intnx(month, &current_date, 1, same));
+        %let current_date = %sysfunc(intnx(month, &current_date, 1, s));
     %end;
 %mend extract_monthly_cohorts;
 
 /* Run the macro loop engine */
-%extract_monthly_cohorts(01Jan1975, 01Jul2015);
+%extract_monthly_cohorts(01Feb1975, 01Jun2015);
 
 
 /* ==============================================================================
    2. CONCATENATE ALL GENERATED TABLES INTO A SINGLE MASTER TABLE
    ============================================================================== */
 data work.final_treatment_anticohort;
-    /* Uses a colon wildcard to automatically set, read, and merge every table 
-       in the work library that begins with the prefix 'cohort_' */
     set work.cohort_:;
 run;
 
-/* Clean up individual temporary monthly files to save space (Optional) */
+/* Clean up individual temporary monthly files to save space */
 proc datasets library=work nolist;
     delete cohort_:;
 quit;
