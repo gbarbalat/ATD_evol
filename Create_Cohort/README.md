@@ -1,6 +1,6 @@
-# Section 1 - Gather db or databases esp for non-REHABase projects  
+# Section 1 - Gather db
 
-## Gather databases with multiple databases (compress if too heavy): first steps of flowchart  
+## Collect based on first steps of flowchart  
 Collect Meds simply collects meds of interest from 2015 to 2019    
 Collect Meds be4 collects meds for the same individuals before the observation period (e.g. to exclude those on Stimulants, APsych, AEpi, and on ATD for less than a year)  
 Collect Supp Admission collects "all time" PSY admissions, and MCO SSR HAD Admissions during the observation period  
