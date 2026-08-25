@@ -109,3 +109,26 @@ run;
 proc datasets library=work nolist;
     delete cohort_:;
 quit;
+
+
+/* 1. Extract distinct ATC Code to Name mappings */
+proc sql;
+    create table work.atc_lookup as
+    select distinct 
+        PHA_ATC_CLA, 
+        PHA_ATC_LIB
+    from work.filtered_treatment_cohort
+    where PHA_ATC_CLA is not missing 
+      and PHA_ATC_LIB is not missing;
+quit;
+
+/* 2. Join the lookup table onto the anti-cohort */
+proc sql;
+    create table work.final_treatment_anticohort2 as
+    select 
+        anti.*,
+        map.PHA_ATC_CLA
+    from work.final_treatment_anticohort as anti
+    left join work.atc_lookup as map
+        on anti.PHA_ATC_LIB = map.PHA_ATC_LIB;
+quit;
