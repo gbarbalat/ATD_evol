@@ -1,16 +1,16 @@
 # Section 1 - Gather db
 
 ## Collect based on first steps of flowchart  
-Collect Meds simply collects meds of interest from 2015 to 2019    
-Collect Meds be4 collects meds for the same individuals before the observation period (e.g. to exclude those on Stimulants, APsych, AEpi, and on ATD for less than a year)  
-Collect Supp Admission collects "all time" PSY admissions, and MCO SSR HAD Admissions during the observation period  
-Collect Z MAX_TRT_DTD collects last point of care consumption to perform sensitivity analysis (varying censoring date)
+Collect Meds simply collects meds of interest from 2015 to 2019 -> filtered_treatment_cohort.sas7bdat      
+Collect Meds be4 collects meds for the same individuals before the observation period (e.g. to exclude those on Stimulants, APsych, AEpi, and on ATD for less than a year) -> final_treatment_anticohort.sas7bdat    
+Collect Supp Admission collects "all time" PSY admissions, and MCO SSR HAD Admissions during the observation period -> master_hospital_extract.sas7bdat    
+Collect Z MAX_TRT_DTD collects last point of care consumption to perform sensitivity analysis (varying censoring date) -> ben_max_trt_dtd.sas7bdat  
 
 ## Pre-process dbs based on flowchart: obvious filter (excl criteria from flowchart) and obvious select on Out, Exp, Cv 
 on SAS, 
-from Meds  
-filter with collect meds be4,  
-filter with collect supp admission  
+from filtered_treatment_cohort,    
+filter with final_treatment_anticohort,  
+filter with master_hospital_extract    
 -> Meds_preproc   
 
 from supp admissions  
