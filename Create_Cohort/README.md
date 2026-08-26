@@ -7,16 +7,13 @@ Collect Supp Admission collects "all time" PSY admissions, and MCO SSR HAD Admis
 Collect Z MAX_TRT_DTD collects last point of care consumption to perform sensitivity analysis (varying censoring date) -> ben_max_trt_dtd.sas7bdat  
 
 ## Pre-process dbs based on flowchart: obvious filter (excl criteria from flowchart) and obvious select on Out, Exp, Cv 
-on SAS, 
-from filtered_treatment_cohort,    
-filter with final_treatment_anticohort,  
-filter with master_hospital_extract    
--> Meds_preproc   
-
-from supp admissions  
-filter 2015-2019  
--> Supp_admissions_preproc  
-
+on SAS, run OLD_NIR_preproc_flowchart.sas  
+ Filter to individuals with >= 1 N06A claim between 2015-01-01 and 2017-12-31  
+ For individuals initiated before 31Dec2015, remove individuals who were on ATD 1 year before or later  
+ Filter out individuals admitted in psychiatry before 2015  
+ Filter out individuals prescribed with AEpi, Apsychotics and stimulants before 2015  
+ Left join with hospital data 2015-2019 AND with MAX_TRT_DTD  
+ 
 # Section 2 - Process data  
 On R,  
 
