@@ -15,7 +15,7 @@ on SAS, run OLD_NIR_preproc_flowchart.sas
  Left join with hospital data 2015-2019 AND with MAX_TRT_DTD  
  
 # Section 2 - Process data  
-On R,  
+On R, run ATD_evol_Process.R    
 
 ## merged_add: merge db of interest, add other vars  
 From Meds_preproc,  
