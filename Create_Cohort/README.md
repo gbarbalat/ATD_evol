@@ -13,6 +13,8 @@ on SAS, run OLD_NIR_preproc_flowchart.sas
  Filter out individuals admitted in psychiatry before 2015  
  Filter out individuals prescribed with AEpi, Apsychotics and stimulants before 2015  
  Left join with hospital data 2015-2019 AND with MAX_TRT_DTD  
+ Filter out non metropolitan districts  
+ Left join with EDI and n_PS  
  
 # Section 2 - Process data  
 On R, run ATD_evol_Process.R    
