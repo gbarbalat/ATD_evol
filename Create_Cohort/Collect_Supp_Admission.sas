@@ -120,19 +120,19 @@
             main.NIR_ANO_17, 
             main.EXE_SOI_DTD, 
             main.EXE_SOI_DTF,
-            for_dx.DGN_PAL,
-            for_dx.AGE_ANN,
-            which_cim.CIM_LIL
+            /*for_dx.DGN_PAL,*/
+            for_dx.AGE_ANN
+            /*which_cim.CIM_LIL*/
         from 
             oravue.T_MCO&year.C as main 
         inner join 
             oravue.T_MCO&year.B as for_dx
         on 
             main.ETA_NUM = for_dx.ETA_NUM AND main.RSA_NUM = for_dx.RSA_NUM
-        left join 
+        /*left join 
             oraval.MS_CIM_V as which_cim
         on 
-            for_dx.DGN_PAL = which_cim.CIM_COD
+            for_dx.DGN_PAL = which_cim.CIM_COD*/
         where 
             main.NIR_ANO_17 in (select distinct BEN_NIR_PSA from work.filtered_treatment_cohort)
             and for_dx.ETA_NUM not in ('130780521', '130783236', '130783293', '130784234', '130804297','600100101', '750041543',
@@ -161,19 +161,19 @@
             main.NIR_ANO_17, 
             main.EXE_SOI_DTD,
             main.EXE_SOI_DTF,
-            for_dx.DGN_PAL,
-            for_dx.AGE_ANN,
-            which_cim.CIM_LIL
+            /*for_dx.DGN_PAL,*/
+            for_dx.AGE_ANN
+            /*which_cim.CIM_LIL*/
         from 
             oravue.T_SSR&year.C as main 
         inner join 
             oravue.T_SSR&year.B as for_dx
         on 
             main.ETA_NUM = for_dx.ETA_NUM AND main.RHA_NUM = for_dx.RHA_NUM
-        left join 
+        /*left join 
             oraval.MS_CIM_V as which_cim
         on 
-            for_dx.DGN_PAL = which_cim.CIM_COD
+            for_dx.DGN_PAL = which_cim.CIM_COD*/
         where 
             main.NIR_ANO_17 in (select distinct BEN_NIR_PSA from work.filtered_treatment_cohort)
             and for_dx.ETA_NUM not in ('130780521', '130783236', '130783293', '130784234', '130804297','600100101', '750041543',
