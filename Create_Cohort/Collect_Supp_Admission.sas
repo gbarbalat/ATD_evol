@@ -9,6 +9,7 @@
         
         create table work.rip_extract_20&yr. as 
         select 
+            'RIP' as source_db,
             main.NIR_ANO_17, 
             main.EXE_SOI_DTD, 
             main.EXE_SOI_DTF, 
@@ -104,8 +105,6 @@
     quit;
 %mend extract_RIP_data;
 
-%extract_RIP_data;
-
 
 /* ==============================================================================
    2. EXTRACT MCO, SSR AND HAD DATA
@@ -117,6 +116,7 @@
         /* --- Extract MCO Data --- */
         create table work.mco_extract_20&year. as 
         select 
+            'MCO' as source_db,
             main.NIR_ANO_17, 
             main.EXE_SOI_DTD, 
             main.EXE_SOI_DTF,
@@ -130,9 +130,7 @@
         on 
             main.ETA_NUM = for_dx.ETA_NUM AND main.RSA_NUM = for_dx.RSA_NUM
         left join 
-                        oraval.MS_CIM_V as which_cim
-
-
+            oraval.MS_CIM_V as which_cim
         on 
             for_dx.DGN_PAL = which_cim.CIM_COD
         where 
@@ -159,6 +157,7 @@
         /* --- Extract SSR Data --- */
         create table work.ssr_extract_20&year. as 
         select 
+            'SSR' as source_db,
             main.NIR_ANO_17, 
             main.EXE_SOI_DTD
         from 
@@ -190,6 +189,7 @@
         /* --- Extract HAD Data --- */
         create table work.had_extract_20&year. as 
         select 
+            'HAD' as source_db,
             main.NIR_ANO_17, 
             main.EXE_SOI_DTD
         from 
