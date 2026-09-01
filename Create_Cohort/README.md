@@ -2,7 +2,7 @@
 
 ## Collect based on first steps of flowchart  
 Collect Meds simply collects meds of interest from 2015 to 2019 -> filtered_treatment_cohort.sas7bdat      
-Collect Meds be4 collects meds for the same individuals before the observation period (e.g. to exclude those on Stimulants, APsych, AEpi, and on ATD for less than a year) -> final_treatment_anticohort.sas7bdat    
+Collect Meds be4 collects meds for the same individuals before the observation period (e.g. to exclude those on Stimulants, APsych, AEpi, and on ATD for less than a year) -> final_treatment_anticohort2.sas7bdat    
 Collect Supp Admission collects "all time" PSY admissions, and MCO SSR HAD Admissions during the observation period -> master_hospital_extract.sas7bdat   
 Collect Z Stimulants 2015 2020 collects any prescription of stimulants during the study period (forgot to collect stimulants in Collect Meds)
 Collect Z MAX_TRT_DTD collects last point of care consumption to perform sensitivity analysis (varying censoring date) -> ben_max_trt_dtd.sas7bdat  
