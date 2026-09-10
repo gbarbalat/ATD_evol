@@ -5,8 +5,8 @@ Steps 1 to 6 = create cohort id with >= 1 N06A claim (ATD) between 2015-01-01 an
 
 ## Pre-process dbs based on flowchart: obvious filter (excl criteria from flowchart) and obvious select on Out, Exp, Cv 
 on SAS, run preproc_flowchart.sas  
- For individuals initiated before 31Dec2015, remove individuals who were on ATD 1 year before or later  
- Filter out individuals admitted in psychiatry before 2015  
+ - Remove individuals who had been on ATD before
+ - Remove individuals with a psych admission before    
  Filter out individuals prescribed with AEpi, Apsychotics and stimulants before 2015  
  Left join with hospital data 2015-2019 AND with MAX_TRT_DTD  
  Filter out non metropolitan districts  
