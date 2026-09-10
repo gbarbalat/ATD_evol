@@ -70,4 +70,24 @@ proc sql;
    where BEN_IDT_ANO not in (select BEN_IDT_ANO from work.excl_prior_f_dx);
 quit;
 
+/* Step 4:From FC3, From FC3, check FC1_2 for any non-antidepressant drug (PHA_ATC_CLA not starting with "N06A") dispensed prior to their first ATD prescription. Exclude those individuals */
+/* 4a. Find IDs in FC3 with prior non-antidepressant prescriptions in FC1_2 */
+proc sql;
+   create table work.excl_prior_other_drugs as
+   select distinct fc3.BEN_IDT_ANO
+   from sasdata1.FC3 as fc3
+   inner join sasdata1.FC1_2 as f2
+      on fc3.BEN_IDT_ANO = f2.BEN_IDT_ANO
+   where upcase(f2.PHA_ATC_CLA) not like 'N06A%'
+     and f2.EXE_SOI_DTD < fc3.dt_first_ad;
+quit;
+
+/* 4b. Build FC4 (deriving from FC2 as requested) */
+proc sql;
+   create table sasdata1.FC4 as
+   select *
+   from sasdata1.FC2
+   where BEN_IDT_ANO in (select BEN_IDT_ANO from sasdata1.FC3)
+     and BEN_IDT_ANO not in (select BEN_IDT_ANO from work.excl_prior_other_drugs);
+quit;
 
