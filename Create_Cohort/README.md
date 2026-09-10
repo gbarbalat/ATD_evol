@@ -1,11 +1,10 @@
 # Section 1 - Gather db
 
 ## Collect based on first steps of flowchart  
-Steps 1 to 6 = create cohort id; gather Meds; gather RIP; MCO; SSR; HAD  (Step 0 = number of women 18-39 with claims during 2015-2017)  
+Steps 1 to 6 = create cohort id with >= 1 N06A claim (ATD) between 2015-01-01 and 2017-12-31; gather Meds; gather RIP; MCO; SSR; HAD  (Step 0 = number of women 18-39 with claims during 2015-2017)  
 
 ## Pre-process dbs based on flowchart: obvious filter (excl criteria from flowchart) and obvious select on Out, Exp, Cv 
 on SAS, run preproc_flowchart.sas  
- Filter to individuals with >= 1 N06A claim (ATD) between 2015-01-01 and 2017-12-31  
  For individuals initiated before 31Dec2015, remove individuals who were on ATD 1 year before or later  
  Filter out individuals admitted in psychiatry before 2015  
  Filter out individuals prescribed with AEpi, Apsychotics and stimulants before 2015  
