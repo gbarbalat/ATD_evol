@@ -114,9 +114,9 @@ proc sql;
    where datepart(f2.EXE_SOI_DTD) < fc3.dt_first_ad
      and (
             upcase(f2.PHA_ATC_CLA) like 'N05A%'  /* Antipsychotics */
-         or upcase(f2.PHA_ATC_CLA) like 'N05B%'  /* Anxiolytics */
          or upcase(f2.PHA_ATC_CLA) like 'N06BA%' /* Psychostimulants */
-         or upcase(f2.PHA_ATC_CLA) like 'N05C%'  /* Hypnotics/Sedatives */
+         /* or upcase(f2.PHA_ATC_CLA) like 'N05B%'   Anxiolytics 
+         or upcase(f2.PHA_ATC_CLA) like 'N05C%'   Hypnotics/Sedatives */
          or upcase(f2.PHA_ATC_CLA) like 'N03A%'  /* Antiepileptics */
      );
 
