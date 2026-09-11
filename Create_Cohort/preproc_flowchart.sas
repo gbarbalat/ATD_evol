@@ -127,3 +127,5 @@ proc sql;
    where BEN_IDT_ANO not in (select BEN_IDT_ANO from work.excl_prior_other_drugs);
 quit;
 
+/* Step 5:From FC4, check FC1_2 for any non-antidepressant drug (PHA_ATC_CLA not starting with "N06A") dispensed prior to their first ATD prescription. Exclude those individuals */
+
