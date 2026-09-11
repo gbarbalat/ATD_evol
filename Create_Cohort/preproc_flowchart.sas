@@ -104,19 +104,23 @@ proc sql;
 quit;
 
 /* Step 4:From FC3, check FC1_2 for any non-antidepressant drug (PHA_ATC_CLA not starting with "N06A") dispensed prior to their first ATD prescription. Exclude those individuals */
-/* 4a. Find IDs in FC3 with prior non-antidepressant prescriptions in FC1_2 */
+/* 4a. Identify IDs in FC3 with specified prior psychotropic drugs in FC1_2 */
 proc sql;
    create table work.excl_prior_other_drugs as
    select distinct fc3.BEN_IDT_ANO
    from sasdata1.FC3 as fc3
    inner join sasdata1.FC1_2 as f2
       on fc3.BEN_IDT_ANO = f2.BEN_IDT_ANO
-   where upcase(f2.PHA_ATC_CLA) not like 'N06A%'
-      and datepart(f2.EXE_SOI_DTD) < fc3.dt_first_ad;
-quit;
+   where datepart(f2.EXE_SOI_DTD) < fc3.dt_first_ad
+     and (
+            upcase(f2.PHA_ATC_CLA) like 'N05A%'  /* Antipsychotics */
+         or upcase(f2.PHA_ATC_CLA) like 'N05B%'  /* Anxiolytics */
+         or upcase(f2.PHA_ATC_CLA) like 'N06BA%' /* Psychostimulants */
+         or upcase(f2.PHA_ATC_CLA) like 'N05C%'  /* Hypnotics/Sedatives */
+         or upcase(f2.PHA_ATC_CLA) like 'N03A%'  /* Antiepileptics */
+     );
 
-/* 4b. Create FC4 from FC2 (filtered by FC3 eligibility and non-AD exclusions) */
-proc sql;
+/* 4b. Create FC4 directly from FC3 */
    create table sasdata1.FC4 as
    select *
    from sasdata1.FC3
