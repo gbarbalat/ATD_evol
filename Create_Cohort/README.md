@@ -14,13 +14,13 @@ On SAS, append meds (FC1_2) and admission data (FC1_3 to 6) for FC4 individuals 
 # Section 2 - Process data  
 On R, run ATD_evol_Process.R    
 
-## merged_add_filter: merge db of interest, add other vars; further filtering  
+## merged_add_filter  
+**merge db of interest, add other vars; further filtering**  
 From FC_4,  
-left join with Admissions (from 2015 to 2019),  
-left join with Other meds, pregnancy, prescriber (from 2015 to 2019)
 left join with EDI and denom_ps_commune (from rf_commun)  
 
-## merged_checks_recode: explore #cols, col names, unique values, tables, NA/distributions; NA in ID and col; obvious recode (1,2,3 to More than etc ... inc. na_if, make categ)  
+## merged_checks_recode  
+**explore #cols, col names, unique values, tables, NA/distributions; NA in ID and col; obvious recode (1,2,3 to More than etc ... inc. na_if, make categ)**  
 
 ## merged_find_gp: Group/arrange levels based on 30-2% & not too many levels (<7) rules and checks steps; recode var (e.g. G027B=Citizen, S022= Year + Month);  
 
