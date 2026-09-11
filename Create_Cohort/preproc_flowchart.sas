@@ -9,8 +9,8 @@
 %let exe_start = %sysfunc(inputn(&start, datetime20.));
 %let exe_end   = %sysfunc(inputn(&end, datetime20.));
 
-/* Format definition for Datetime handling */
-format dt_first_ad DATETIME20.;
+/* Format definition for Datetime handling 
+format dt_first_ad DATETIME20.;*/
 
 /* Step 1: Find First Antidepressant Date per Beneficiary & Append to FC1_1 */
 
@@ -28,7 +28,7 @@ quit;
 
 /* 1b. Append date to FC1_1 */
 proc sql;
-   create table work.fc1_1_with_dt as
+   create table sasdata1.fc1_1_with_dt as
    select a.*, 
           b.dt_first_ad_dt,
           b.dt_first_ad
@@ -43,7 +43,7 @@ Exclude those individuals */
 proc sql;
    create table work.excl_prior_ad as
    select distinct f1.BEN_IDT_ANO
-   from work.fc1_1_with_dt as f1
+   from sasdata1.fc1_1_with_dt as f1
    inner join sasdata1.FC1_2 as f2
       on f1.BEN_IDT_ANO = f2.BEN_IDT_ANO
    where f1.dt_first_ad_dt >= &exe_start. 
@@ -56,7 +56,7 @@ quit;
 proc sql;
    create table sasdata1.FC2 as
    select *
-   from work.fc1_1_with_dt
+   from sasdata1.fc1_1_with_dt
    where BEN_IDT_ANO not in (select BEN_IDT_ANO from work.excl_prior_ad);
 quit;
 
