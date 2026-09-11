@@ -1,40 +1,59 @@
+/* Macro variable for 01JAN2015 start threshold */
+%let cutoff_start = %sysfunc(inputn(01JAN2015:00:00:00, datetime20.));
+
+/* Macro variables matching your environment setup */
+%let start     = 01JAN2015:00:00:00;
+%let end       = 31DEC2016:23:59:59;
+%let grace = %eval(365*2);  
+
+%let exe_start = %sysfunc(inputn(&start, datetime20.));
+%let exe_end   = %sysfunc(inputn(&end, datetime20.));
+
+/* Format definition for Datetime handling */
+format dt_first_ad DATETIME20.;
+
 /* Step 1: Find First Antidepressant Date per Beneficiary & Append to FC1_1 */
 
-/* 1a. Extract earliest antidepressant date per BEN_IDT_ANO */
+/* 1a. Extract earliest antidepressant date per BEN_IDT_ANO >= 01JAN2015 */
 proc sql;
    create table work.first_ad_date as
    select BEN_IDT_ANO, 
-          min(EXE_SOI_DTD) as dt_first_ad format=YYMMDD10.
+          min(EXE_SOI_DTD) format=DATETIME20. as dt_first_ad_dt,
+          datepart(min(EXE_SOI_DTD)) format=YYMMDD10. as dt_first_ad
    from sasdata1.FC1_2
    where upcase(PHA_ATC_CLA) like 'N06A%'
+     and EXE_SOI_DTD >= &cutoff_start.
    group by BEN_IDT_ANO;
 quit;
 
-/* 1b. Merge dt_first_ad onto FC1_1 */
+/* 1b. Append date to FC1_1 */
 proc sql;
    create table work.fc1_1_with_dt as
    select a.*, 
+          b.dt_first_ad_dt,
           b.dt_first_ad
    from sasdata1.FC1_1 as a
    left join work.first_ad_date as b
      on a.BEN_IDT_ANO = b.BEN_IDT_ANO;
 quit;
 
-/* Step 2:For individuals whose first antidepressant prescription occurred in 2015, check FC1_2 for any antidepressant (N06A) in the 2-year lookback window. Exclude those individuals */
-/* 2a. Identify individuals in 2015 with antidepressant use in the 2 years prior */
+/* Step 2:For individuals whose first antidepressant prescription occurred 2 years before last atd prescription in FC1_2.
+Exclude those individuals */
+/* 2a. Identify patients with prior antidepressant use in the 2 years prior */
 proc sql;
    create table work.excl_prior_ad as
    select distinct f1.BEN_IDT_ANO
    from work.fc1_1_with_dt as f1
    inner join sasdata1.FC1_2 as f2
       on f1.BEN_IDT_ANO = f2.BEN_IDT_ANO
-   where year(f1.dt_first_ad) = 2015
+   where f1.dt_first_ad_dt >= &exe_start. 
+     and f1.dt_first_ad_dt <= &exe_end.
      and upcase(f2.PHA_ATC_CLA) like 'N06A%'
-     and f2.EXE_SOI_DTD < f1.dt_first_ad
-     and f2.EXE_SOI_DTD >= intnx('year', f1.dt_first_ad, -2, 'same');
+     and datepart(f2.EXE_SOI_DTD) < f1.dt_first_ad
+     and datepart(f2.EXE_SOI_DTD) >= intnx('day', f1.dt_first_ad, -&grace);
 quit;
 
-/* 2b. Build FC2 by excluding those individuals */
+/* 2b. Build FC2 */
 proc sql;
    create table sasdata1.FC2 as
    select *
