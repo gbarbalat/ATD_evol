@@ -60,28 +60,43 @@ proc sql;
    where BEN_IDT_ANO not in (select BEN_IDT_ANO from work.excl_prior_ad);
 quit;
 
-/* Step 3:From FC2, check FC1_3, FC1_4, FC1_5, and FC1_6 for any diagnosis code starting with "F" that occurred prior to their first ATD prescription. Exclude those individuals */
-/* 3a. Union diagnostic tables and find IDs with prior 'F' diagnoses */
+/* Step 3:From FC2, check FC1_3, FC1_4, FC1_5, and FC1_6 for any diagnosis code starting with "F" that occurred prior to their first ATD prescription. Exclude those individuals 
+Unfortunately, no dx in FC1_5
+*/
+
 proc sql;
    create table work.excl_prior_f_dx as
-   select distinct fc2.BEN_IDT_ANO
-   from sasdata1.FC2 as fc2
-   inner join (
-      select BEN_IDT_ANO, EXE_SOI_DTD, dx from sasdata1.FC1_3
-      union all
-      select BEN_IDT_ANO, EXE_SOI_DTD, dx from sasdata1.FC1_4
-      union all
-      select BEN_IDT_ANO, EXE_SOI_DTD, dx from sasdata1.FC1_5
-      union all
-      select BEN_IDT_ANO, EXE_SOI_DTD, dx from sasdata1.FC1_6
-   ) as dx_all
-      on fc2.BEN_IDT_ANO = dx_all.BEN_IDT_ANO
-   where upcase(dx_all.dx) like 'F%'
-     and dx_all.EXE_SOI_DTD < fc2.dt_first_ad;
-quit;
+   select distinct BEN_IDT_ANO
+   from (
+      /* FC1_3: Any event prior to dt_first_ad (whatever the diagnosis) */
+      select fc2.BEN_IDT_ANO
+      from sasdata1.FC2 as fc2
+      inner join sasdata1.FC1_3 as f3
+         on fc2.BEN_IDT_ANO = f3.BEN_IDT_ANO
+      where datepart(f3.EXE_SOI_DTD) < fc2.dt_first_ad
 
-/* 3b. Build FC3 */
-proc sql;
+      union
+
+      /* FC1_4: Prior event with DGN_PAL starting with F */
+      select fc2.BEN_IDT_ANO
+      from sasdata1.FC2 as fc2
+      inner join sasdata1.FC1_4 as f4
+         on fc2.BEN_IDT_ANO = f4.BEN_IDT_ANO
+      where datepart(f4.EXE_SOI_DTD) < fc2.dt_first_ad
+        and upcase(f4.DGN_PAL) like 'F%'
+
+      union
+
+      /* FC1_6: Prior event with DGN_PAL starting with F */
+      select fc2.BEN_IDT_ANO
+      from sasdata1.FC2 as fc2
+      inner join sasdata1.FC1_6 as f6
+         on fc2.BEN_IDT_ANO = f6.BEN_IDT_ANO
+      where datepart(f6.EXE_SOI_DTD) < fc2.dt_first_ad
+        and upcase(f6.DGN_PAL) like 'F%'
+   );
+
+   /* Create FC3 by removing excluded beneficiaries from FC2 */
    create table sasdata1.FC3 as
    select *
    from sasdata1.FC2
