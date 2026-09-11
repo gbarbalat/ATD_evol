@@ -39,7 +39,7 @@ quit;
 
 /* Step 2:For individuals whose first antidepressant prescription occurred 2 years before last atd prescription in FC1_2.
 Exclude those individuals */
-/* 2a. Identify patients with prior antidepressant use in the 2 years prior */
+
 proc sql;
    create table work.excl_prior_ad as
    select distinct f1.BEN_IDT_ANO
@@ -50,10 +50,9 @@ proc sql;
      and f1.dt_first_ad_dt <= &exe_end.
      and upcase(f2.PHA_ATC_CLA) like 'N06A%'
      and datepart(f2.EXE_SOI_DTD) < f1.dt_first_ad
-     and datepart(f2.EXE_SOI_DTD) >= intnx('day', f1.dt_first_ad, -&grace);
+     and datepart(f2.EXE_SOI_DTD) >= (f1.dt_first_ad - &grace.);
 quit;
 
-/* 2b. Build FC2 */
 proc sql;
    create table sasdata1.FC2 as
    select *
