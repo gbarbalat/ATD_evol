@@ -71,20 +71,26 @@ run;
 %let exe_start = %sysfunc(inputn(&start, datetime20.));
 
 /* 7.1. Filter out pre-2015 rows, coalesce age, and drop unwanted columns */
-data work.FC4_filtered;
-   set work.FC4_concatenated;
-   
-   /* Keep rows on or after 01/01/2015 */
-   where EXE_SOI_DTD >= &exe_start.;
+data sasdata1.merged_big;
+   set work.FC4_concatenated;   
    
    /* Combine AGE_ANN and BEN_AMA_COD if needed into a single AGE_ANN column */
    AGE_ANN = coalesce(AGE_ANN, BEN_AMA_COD);
    
    /* Drop specified columns */
-   drop NIR_ANO_17 PHA_PRS_C13 BEN_AMA_COD;
+   drop NIR_ANO_17 PHA_PRS_C13 BEN_AMA_COD BEN_NIR_PSA BEN_RNG_GEM 
+		PRE_PRE_DTD CIM_LIL;
 run;
 
-/* 7.2. Sort final output dataset into sasdata1.merged_ */
-proc sort data=work.FC4_filtered out=sasdata1.merged_;
-   by BEN_IDT_ANO EXE_SOI_DTD;
+/* 7.2. baseline merged_ */
+data sasdata1.merged_;
+   set sasdata1.merged_big;
+   
+   /* Keep rows on or after 01/01/2015 
+   where EXE_SOI_DTD >= &exe_start.;*/
+
+   /* Drop specified columns */
+   drop PRS_GRS_DTD PHA_FRM_LIB PHA_SUB_DOS PHA_UPC_NBR PSP_ACT_NAT
+		PSP_SPE_COD PSP_ACT_NAT BEN_RES_DPT BEN_RES_COM MAX_TRT_DTD
+		PHA_ACT_QSN total_PHA_ACT_QSN;
 run;
