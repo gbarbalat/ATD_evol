@@ -7,7 +7,9 @@ Steps 1 to 6 = create cohort id with >= 1 N06A claim (ATD) between 2015-01-01 an
 on SAS, run preproc_flowchart.sas  
  - Remove individuals who had been on ATD before their ATD initiation 2015-2017
  - Remove individuals with a psych admission before their ATD initiation 2015-2017
- - Remove individuals prescribed with AEpi, Apsychotics and stimulants before their ATD initiation 2015-2017  
+ - Remove individuals prescribed with AEpi, Apsychotics and stimulants before their ATD initiation 2015-2017
+
+On SAS, append meds (FC1_2) and admission data (FC1_3 to 6) for FC4 individuals to create merged_ db  
  
 # Section 2 - Process data  
 On R, run ATD_evol_Process.R    
