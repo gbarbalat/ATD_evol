@@ -86,8 +86,8 @@ run;
 data sasdata1.merged_;
    set sasdata1.merged_big;
    
-   /* Keep rows on or after 01/01/2015 
-   where EXE_SOI_DTD >= &exe_start.;*/
+   /* Keep rows on or after 01/01/2015 */
+   where EXE_SOI_DTD >= first_ad;/*&exe_start.;*/
 
    /* Drop specified columns */
    drop PRS_GRS_DTD PHA_FRM_LIB PHA_SUB_DOS PHA_UPC_NBR PSP_ACT_NAT
