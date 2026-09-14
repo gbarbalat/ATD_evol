@@ -83,14 +83,37 @@ data sasdata1.merged_big;
 run;
 
 /* 7.2. baseline merged_ */
-data sasdata1.merged_;
-   set sasdata1.merged_big;
-   
-   /* Keep rows on or after 01/01/2015 */
-   where EXE_SOI_DTD >= first_ad;/*&exe_start.;*/
+proc sql;
+    create table sasdata1.merged_(drop=PRS_GRS_DTD PHA_FRM_LIB PHA_SUB_DOS 
+                                      PHA_UPC_NBR PSP_ACT_NAT PSP_SPE_COD 
+                                      BEN_RES_DPT BEN_RES_COM MAX_TRT_DTD 
+                                      PHA_ACT_QSN total_PHA_ACT_QSN) as
+    select *
+    from sasdata1.merged_big
+    group by BEN_IDT_ANO
+    having EXE_SOI_DTD >= min(dt_first_ad_dt);
+quit;
 
-   /* Drop specified columns */
-   drop PRS_GRS_DTD PHA_FRM_LIB PHA_SUB_DOS PHA_UPC_NBR PSP_ACT_NAT
-		PSP_SPE_COD PSP_ACT_NAT BEN_RES_DPT BEN_RES_COM MAX_TRT_DTD
-		PHA_ACT_QSN total_PHA_ACT_QSN;
+data sasdata1.merged_;
+    set sasdata1.merged_;
+
+    /* 1. Calculate LOS for MCO, SSR, and HAD */
+    if source_db in ('MCO', 'SSR', 'HAD') then do;
+        /* DATEPART converts Datetime to Date (days), then subtract */
+        LOS = datepart(EXE_SOI_DTF) - datepart(EXE_SOI_DTD);
+    end;
+
+    /* 2. Process RIP */
+    else if source_db = 'RIP' then do;
+        LOS = PRE_JOU_NBJ;
+        
+        /* Add DEL_DAT (in days) converted to seconds */
+    	EXE_SOI_DTD = EXE_SOI_DTD + (DEL_DAT * 86400)
+		EXE_SOI_DTF = EXE_SOI_DTD + (LOS * 86400);
+
+    	/* Ensure the format is preserved */
+    	format EXE_SOI_DTD DATETIME20.
+			   EXE_SOI_DTF DATETIME20.	;
+    	end;
 run;
+
