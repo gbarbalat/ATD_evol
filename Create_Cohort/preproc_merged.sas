@@ -97,5 +97,10 @@ run;
 
 /* 9. Final Deduplication and Sorting */
 proc sort data=sasdata1.merged_ out=sasdata1.merged_ noduprecs;
+   by _all_;
+run;
+
+/* Re-sort by your primary key order afterwards */
+proc sort data=sasdata1.merged_;
    by BEN_IDT_ANO EXE_SOI_DTD;
 run;
