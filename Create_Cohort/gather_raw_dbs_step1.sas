@@ -64,7 +64,7 @@
                 and prs.REM_TYP_AFF = pha.REM_TYP_AFF
                 
             inner join oravue.IR_PHA_R as ref
-                on pha.PHA_PRS_C13 = ref.PHA_RGE_C13 
+                on pha.PHA_PRS_C13 = ref.PHA_CIP_C13 
                 
             where prs.EXE_SOI_DTD between "%sysfunc(strip(&exe_cur_b_c))"dt 
                                       and "%sysfunc(strip(&exe_cur_e_c))"dt
