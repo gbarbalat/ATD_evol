@@ -1,4 +1,8 @@
-/* append meds to FC4 */
+/* 1. Macro Variable Setup */
+%let start     = 01JAN2015:00:00:00;
+%let exe_start = %sysfunc(inputn(&start, datetime20.));
+
+/* 2. Link Meds to FC4 Cohort */
 proc sql;
    create table work.FC4_meds as
    select a.*,
@@ -6,57 +10,39 @@ proc sql;
    from sasdata1.fc1_2_with_totals as a
    inner join sasdata1.FC4 as b
       on a.BEN_IDT_ANO = b.BEN_IDT_ANO;
-quit;
 
-/* append admission data */
-/* 1. Extract unique benchmark IDs from FC4 into a indexed table */
-proc sql;
+/* 3. Unique Patient Key Table */
    create table work.fc4_ids as
    select distinct BEN_IDT_ANO
    from sasdata1.FC4;
-quit;
 
-/* 2. Process & Deduplicate FC1_3 */
-proc sql;
+/* 4. Extract and Clean Diagnostic Sources */
    create table work.fc1_3_clean as
-   select distinct 
-          BEN_IDT_ANO, source_db, NIR_ANO_17, EXE_SOI_DTD, EXE_SOI_DTF, 
-          DGN_PAL, AGE_ANN, CIM_LIL, FOR_ACT, DEL_DAT, PRE_JOU_NBJ, PRE_DEM_JOU_NBJ
+   select distinct BEN_IDT_ANO, source_db, NIR_ANO_17, EXE_SOI_DTD, EXE_SOI_DTF, 
+                   DGN_PAL, AGE_ANN, CIM_LIL, FOR_ACT, DEL_DAT, PRE_JOU_NBJ, PRE_DEM_JOU_NBJ
    from sasdata1.FC1_3
    where BEN_IDT_ANO in (select BEN_IDT_ANO from work.fc4_ids);
-quit;
 
-/* 3. Process & Deduplicate FC1_4 */
-proc sql;
    create table work.fc1_4_clean as
-   select distinct 
-          BEN_IDT_ANO, source_db, NIR_ANO_17, EXE_SOI_DTD, EXE_SOI_DTF, 
-          DGN_PAL, AGE_ANN, CIM_LIL
+   select distinct BEN_IDT_ANO, source_db, NIR_ANO_17, EXE_SOI_DTD, EXE_SOI_DTF, 
+                   DGN_PAL, AGE_ANN, CIM_LIL
    from sasdata1.FC1_4
    where BEN_IDT_ANO in (select BEN_IDT_ANO from work.fc4_ids);
-quit;
 
-/* 4. Process & Deduplicate FC1_5 (Rename ASS_DGN_1 to DGN_PAL) */
-proc sql;
    create table work.fc1_5_clean as
-   select distinct 
-          BEN_IDT_ANO, source_db, NIR_ANO_17, EXE_SOI_DTD, EXE_SOI_DTF, 
-          ASS_DGN_1 as DGN_PAL, AGE_ANN, CIM_LIL
+   select distinct BEN_IDT_ANO, source_db, NIR_ANO_17, EXE_SOI_DTD, EXE_SOI_DTF, 
+                   ASS_DGN_1 as DGN_PAL, AGE_ANN, CIM_LIL
    from sasdata1.FC1_5
    where BEN_IDT_ANO in (select BEN_IDT_ANO from work.fc4_ids);
-quit;
 
-/* 5. Process & Deduplicate FC1_6 */
-proc sql;
    create table work.fc1_6_clean as
-   select distinct 
-          BEN_IDT_ANO, source_db, NIR_ANO_17, EXE_SOI_DTD, EXE_SOI_DTF, 
-          DGN_PAL, AGE_ANN, CIM_LIL
+   select distinct BEN_IDT_ANO, source_db, NIR_ANO_17, EXE_SOI_DTD, EXE_SOI_DTF, 
+                   DGN_PAL, AGE_ANN, CIM_LIL
    from sasdata1.FC1_6
    where BEN_IDT_ANO in (select BEN_IDT_ANO from work.fc4_ids);
 quit;
 
-/* 6. Concatenate Admission and FC4_meds, preserving all unique columns */
+/* 5. Concatenate All Input Sources */
 data work.FC4_concatenated;
    set work.fc1_3_clean
        work.fc1_4_clean
@@ -65,55 +51,51 @@ data work.FC4_concatenated;
        work.FC4_meds;
 run;
 
-/* 7. Sort final dataset */
-/* Ensure starting datetime cutoff macro variable is defined */
-%let start     = 01JAN2015:00:00:00;
-%let exe_start = %sysfunc(inputn(&start, datetime20.));
-
-/* 7.1. Filter out pre-2015 rows, coalesce age, and drop unwanted columns */
+/* 6. Base Prep: Column Cleanup & Coalesce Age */
 data sasdata1.merged_big;
-   set work.FC4_concatenated;   
-   
-   /* Combine AGE_ANN and BEN_AMA_COD if needed into a single AGE_ANN column */
+   set work.FC4_concatenated;
    AGE_ANN = coalesce(AGE_ANN, BEN_AMA_COD);
-   
-   /* Drop specified columns */
-   drop NIR_ANO_17 PHA_PRS_C13 BEN_AMA_COD BEN_NIR_PSA BEN_RNG_GEM 
-		PRE_PRE_DTD CIM_LIL;
+   drop NIR_ANO_17 PHA_PRS_C13 BEN_AMA_COD BEN_NIR_PSA BEN_RNG_GEM PRE_PRE_DTD CIM_LIL;
 run;
 
-/* 7.2. baseline merged_ */
+/* 7. Baseline Index Date Filter */
 proc sql;
-    create table sasdata1.merged_(drop=PRS_GRS_DTD PHA_FRM_LIB PHA_SUB_DOS 
-                                      PHA_UPC_NBR PSP_ACT_NAT PSP_SPE_COD 
-                                      BEN_RES_DPT BEN_RES_COM MAX_TRT_DTD 
-                                      PHA_ACT_QSN total_PHA_ACT_QSN) as
-    select *
-    from sasdata1.merged_big
-    group by BEN_IDT_ANO
-    having EXE_SOI_DTD >= min(dt_first_ad_dt);
+   create table work.merged_index_filtered(drop=PRS_GRS_DTD PHA_FRM_LIB PHA_SUB_DOS 
+                                                 PHA_UPC_NBR PSP_ACT_NAT PSP_SPE_COD 
+                                                 BEN_RES_DPT BEN_RES_COM 
+                                                 PHA_ACT_QSN ) as
+   select *
+   from sasdata1.merged_big
+   group by BEN_IDT_ANO
+   having EXE_SOI_DTD >= min(dt_first_ad_dt);
 quit;
 
+/* 8. Single Combined DATA Step: Calculate LOS, Fix Datetimes, Apply Filters */
 data sasdata1.merged_;
-    set sasdata1.merged_;
+   set work.merged_index_filtered;
 
-    /* 1. Calculate LOS for MCO, SSR, and HAD */
-    if source_db in ('MCO', 'SSR', 'HAD') then do;
-        /* DATEPART converts Datetime to Date (days), then subtract */
-        LOS = datepart(EXE_SOI_DTF) - datepart(EXE_SOI_DTD);
-    end;
+   /* 8.1. Filter non-01 FOR_ACT in RIP */
+   if upcase(source_db) = 'RIP' and FOR_ACT ne '01' then delete;
 
-    /* 2. Process RIP */
-    else if source_db = 'RIP' then do;
-        LOS = PRE_JOU_NBJ;
-        
-        /* Add DEL_DAT (in days) converted to seconds */
-    	EXE_SOI_DTD = EXE_SOI_DTD + (DEL_DAT * 86400)
-		EXE_SOI_DTF = EXE_SOI_DTD + (LOS * 86400);
+   /* 8.2. Length of Stay (LOS) Logic */
+   if source_db in ('MCO', 'SSR', 'HAD') then do;
+      LOS = datepart(EXE_SOI_DTF) - datepart(EXE_SOI_DTD);
+   end;
+   else if source_db = 'RIP' then do;
+      LOS = PRE_JOU_NBJ;
+      /* Fixed Missing Semicolon Here */
+      EXE_SOI_DTD = EXE_SOI_DTD + (DEL_DAT * 86400);
+      EXE_SOI_DTF = EXE_SOI_DTD + (LOS * 86400);
+      format EXE_SOI_DTD DATETIME20. EXE_SOI_DTF DATETIME20.;
+   end;
 
-    	/* Ensure the format is preserved */
-    	format EXE_SOI_DTD DATETIME20.
-			   EXE_SOI_DTF DATETIME20.	;
-    	end;
+   /* 8.3. Filter Stays Less Than 30 Days (Preserves Outpatient Records) */
+   if not missing(LOS) and LOS < 30 then delete;
+
+   drop DEL_DAT PRE_JOU_NBJ PRE_DEM_JOU_NBJ;
 run;
 
+/* 9. Final Deduplication and Sorting */
+proc sort data=sasdata1.merged_ out=sasdata1.merged_ noduprecs;
+   by BEN_IDT_ANO EXE_SOI_DTD;
+run;
