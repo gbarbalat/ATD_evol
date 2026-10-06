@@ -98,12 +98,12 @@
               and prs.FLX_DIS_DTD = "%sysfunc(strip(&flx_cur_c))"dt  
               and prs.BEN_SEX_COD = 2
               and (
-                    ref.PHA_ATC_CLA like 'N05A%' 
+                    ref.PHA_ATC_CLA like 'N05A%' /* antipsychotics - lithium */
                 /* or ref.PHA_ATC_CLA like 'N05B%' 
                  or ref.PHA_ATC_CLA like 'N05C%' anxiolytics, hypnotics */
-                 or ref.PHA_ATC_CLA like 'N06A%' 
-				 or ref.PHA_ATC_CLA like 'N06BA%'
-                 or ref.PHA_ATC_CLA like 'N03A%' 
+                 or ref.PHA_ATC_CLA like 'N06A%' /* antidepressants */
+				 or ref.PHA_ATC_CLA like 'N06BA%' /* stimulants */
+                 or ref.PHA_ATC_CLA like 'N03A%'  /* antiepileptics */
               );
 		
            quit;
@@ -135,7 +135,7 @@
 
 /* Execution Example 
 %loop_exe_and_flx_FC1_2(start=01JAN2015:00:00:00, stop=31JAN2015:23:59:59);*/
-%loop_exe_and_flx_FC1_2(start=01JAN2006:00:00:00, stop=31DEC2014:23:59:59);
+%loop_exe_and_flx_FC1_2(start=01JAN2006:00:00:00, stop=31DEC2019:23:59:59);
 
 /* to sasdata1 */
 proc sql;
