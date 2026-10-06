@@ -135,7 +135,7 @@
 
 /* Execution Example 
 %loop_exe_and_flx_FC1_2(start=01JAN2015:00:00:00, stop=31JAN2015:23:59:59);*/
-%loop_exe_and_flx_FC1_2(start=01JAN2006:00:00:00, stop=31DEC2019:23:59:59);
+%loop_exe_and_flx_FC1_2(start=01JAN2006:00:00:00, stop=31DEC2014:23:59:59);
 
 /* to sasdata1 */
 proc sql;
