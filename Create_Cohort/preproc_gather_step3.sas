@@ -77,7 +77,7 @@
        proc sql;
           create table work.ssr_extract_tmp as 
           select 
-             fc1_1.BEN_IDT_ANO,
+             FC2.BEN_IDT_ANO,
              'SSR' as source_db length=3,
              main.NIR_ANO_17, 
              main.EXE_SOI_DTD, 
@@ -87,8 +87,8 @@
              for_dx.AGE_ANN
           from oravue.T_SSR&yr.C as main
 
-          inner join orauser.FC1_1 as fc1_1
-             on main.NIR_ANO_17 = fc1_1.BEN_NIR_PSA
+          inner join orauser.FC2 as FC2
+             on main.NIR_ANO_17 = FC2.BEN_NIR_PSA
 
           inner join oravue.T_SSR&yr.B as for_dx
              on main.ETA_NUM = for_dx.ETA_NUM 
@@ -137,7 +137,7 @@
 
 /* to sasdata1 */
 proc sql;
-   create table sasdata1.fc1_5 as
+   create table sasdata1.FC5 as
    select *
    from work.ssr_extract_all;
 quit;
