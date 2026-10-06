@@ -71,7 +71,8 @@
               and prs.FLX_DIS_DTD = "%sysfunc(strip(&flx_cur_c))"dt  
               and prs.BEN_SEX_COD = 2
 			  and prs.BEN_AMA_COD between 18 and 39
-              and ref.PHA_ATC_CLA like 'N06A%' ;   
+              and ref.PHA_ATC_CLA like 'N06A%'  /*antidepressant *?  
+			  and ;
          quit;
 
          proc append base=WORK.ALL_ER_PRS_F data=WORK.QUERY_FOR_ER_PRS_F force;
@@ -104,7 +105,7 @@
 
 /* Execution Example 
 %loop_exe_and_flx_FC1_1(start=01JAN2015:00:00:00, stop=28FEB2015:23:59:59);*/
-%loop_exe_and_flx_FC1_1(start=01JAN2015:00:00:00, stop=31DEC2017:23:59:59);
+%loop_exe_and_flx_FC1_1(start=01JAN2015:00:00:00, stop=31DEC2018:23:59:59);
 
 
 /* 1. Inner join with IR_BEN_R and select distinct BEN_IDT_ANO */
