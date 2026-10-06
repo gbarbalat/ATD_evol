@@ -4,7 +4,7 @@
 /* Macro variables matching your environment setup */
 %let start     = 01JAN2015:00:00:00;
 %let end       = 31DEC2016:23:59:59;
-%let grace = %eval(365*2);  
+%let grace = %eval(30);  
 
 %let exe_start = %sysfunc(inputn(&start, datetime20.));
 %let exe_end   = %sysfunc(inputn(&end, datetime20.));
@@ -37,7 +37,7 @@ proc sql;
      on a.BEN_IDT_ANO = b.BEN_IDT_ANO;
 quit;
 
-/* Step 2:For individuals whose first antidepressant prescription occurred before other ppsychotropic prescription in FC1_2.
+/* Step 2:For individuals whose first antidepressant prescription occurred before other psychotropic prescription in FC1_2.
 Exclude those individuals */
 
 proc sql;
@@ -46,11 +46,10 @@ proc sql;
    from sasdata1.fc1_1_with_dt as f1
    inner join sasdata1.FC1_2 as f2
       on f1.BEN_IDT_ANO = f2.BEN_IDT_ANO
-   where f1.dt_first_ad_dt >= &exe_start. 
-     and f1.dt_first_ad_dt <= &exe_end.
+   where /* f1.dt_first_ad_dt >= &exe_start. 
+     and f1.dt_first_ad_dt <= &exe_end. */
      /* and upcase(f2.PHA_ATC_CLA) like 'N06A%' */
-     and datepart(f2.EXE_SOI_DTD) < f1.dt_first_ad
-     and datepart(f2.EXE_SOI_DTD) >= (f1.dt_first_ad - &grace.);
+     and datepart(f2.EXE_SOI_DTD) < f1.dt_first_ad + &grace. ;
 quit;
 
 proc sql;
