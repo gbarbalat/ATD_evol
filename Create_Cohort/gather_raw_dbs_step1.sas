@@ -71,7 +71,7 @@
               and prs.FLX_DIS_DTD = "%sysfunc(strip(&flx_cur_c))"dt  
               and prs.BEN_SEX_COD = 2
 			  and prs.BEN_AMA_COD between 18 and 39
-              and ref.PHA_ATC_CLA like 'N06A%'  /*antidepressant *?  
+              and ref.PHA_ATC_CLA like 'N06AB%'  /*Only SSRIs*/  
 			  and ;
          quit;
 
