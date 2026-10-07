@@ -71,8 +71,8 @@
               and prs.FLX_DIS_DTD = "%sysfunc(strip(&flx_cur_c))"dt  
               and prs.BEN_SEX_COD = 2
 			  and prs.BEN_AMA_COD between 18 and 39
-              and ref.PHA_ATC_CLA like 'N06AB%'  /*Only SSRIs*/  
-			  and ;
+              and ref.PHA_ATC_CLA like 'N06AB%'  /*Only SSRIs
+			  and */  ;
          quit;
 
          proc append base=WORK.ALL_ER_PRS_F data=WORK.QUERY_FOR_ER_PRS_F force;
