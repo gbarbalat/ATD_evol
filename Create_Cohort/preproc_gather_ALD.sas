@@ -12,13 +12,16 @@
              main.IMB_ALD_DTD,
              main.IMB_ALD_DTF,
 
-             dico.CAT_CIM_LIB
+             dico.ALD_030_LIB
              
           from oravue.IR_IMB_R as main
 
           inner join orauser.FC2 as FC2
              on main.BEN_NIR_ANO = FC2.BEN_NIR_ANO
-             and main.BEN_RNG_GEM = FC2.BEN_RNG_GEM;
+             and main.BEN_RNG_GEM = FC2.BEN_RNG_GEM 
+          
+          inner join oraval.IR_ALD_V as dico
+                on main.IMB_ALD_NUM = dico.ALD_030_COD ;
              
        quit;
 
