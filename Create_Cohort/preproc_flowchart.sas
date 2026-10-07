@@ -53,7 +53,7 @@ proc sql;
 quit;
 
 proc sql;
-   create table sasdata1.FC2 as
+   create table orauser.FC2 as
    select *
    from sasdata1.fc1_1_with_dt
    where BEN_IDT_ANO not in (select BEN_IDT_ANO from work.excl_prior_ad);
