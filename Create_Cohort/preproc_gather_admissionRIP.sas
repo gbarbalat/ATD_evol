@@ -126,7 +126,7 @@
                    '690784152', '690784178', '690787478', '830100558'
                 )
 			and main.EXE_SOI_DTD >= FC2.dt_first_ad
-            and main.EXE_SOI_DTD <= FC2.dt_first_ad + &grace.
+            and main.EXE_SOI_DTD <= FC2.dt_first_ad + %eval(366)
             and &f_coh_nai_ret_flg.
             and &f_coh_sex_ret_flg.
             and &f_typ_gen_rsa_flg.
@@ -162,7 +162,7 @@
 
 /* to sasdata1 */
 proc sql;
-   create table sasdata1.FC3 as
+   create table sasdata1.RIP as
    select *
    from work.rip_extract_all;
 quit;
