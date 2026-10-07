@@ -104,8 +104,8 @@
 %mend loop_exe_and_flx_FC1_1;
 
 /* Execution Example 
-%loop_exe_and_flx_FC1_1(start=01JAN2015:00:00:00, stop=28FEB2015:23:59:59);*/
-%loop_exe_and_flx_FC1_1(start=01JAN2015:00:00:00, stop=31DEC2018:23:59:59);
+%loop_exe_and_flx_FC1_1(start=01JAN2015:00:00:00, stop=31DEC208:23:59:59);*/
+%loop_exe_and_flx_FC1_1(start=01JAN2022:00:00:00, stop=31DEC2023:23:59:59);
 
 
 /* 1. Inner join with IR_BEN_R and select distinct BEN_IDT_ANO */
