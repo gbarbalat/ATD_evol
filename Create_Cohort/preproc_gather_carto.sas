@@ -23,7 +23,7 @@
              main., 
              main.,
              
-          from orameps.CARTO_CT_DEP_G13_&yr as main
+          from orameps.CARTO_CT_DEP_G13_&yr. as main
 
           inner join orauser.FC2 as FC2
              on main.BEN_IDT_ANO = FC2.BEN_IDT_ANO;
