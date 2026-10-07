@@ -108,7 +108,7 @@
                    '690784152', '690784178', '690787478', '830100558'
                 )
             and main.EXE_SOI_DTD >= FC2.dt_first_ad
-            and main.EXE_SOI_DTD <= FC2.dt_first_ad + &grace.
+            and main.EXE_SOI_DTD <= FC2.dt_first_ad + %eval(366)
             and main.NIR_ANO_17 not in ('xxxxxxxxxxxxxxxxx', 'BXXXXXXXXXXXXXXXX')
             /* Dynamic status checks from CHECK 3 */
             and &f_ent_mod.
@@ -141,7 +141,7 @@
 
 /* to sasdata1 */
 proc sql;
-   create table sasdata1.FC6 as
+   create table sasdata1.HAD as
    select *
    from work.had_extract_all;
 quit;
