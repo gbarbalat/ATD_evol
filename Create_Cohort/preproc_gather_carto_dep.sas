@@ -19,11 +19,14 @@
           select 
              FC2.BEN_IDT_ANO,
              'CARTO' as source_db length=5,
-             main., 
-             main., 
-             main.,
+             main.DEP_DGF_PSY_BSE, /* hospit psy publiques */
+             main.DEP_OQN_PSY_BSE,  /* hospit psy privees */
+             main.TOT_DEP_BSE,
+             main.TOT_DEP_HOP_BSE,
+             main.TOT_DEP_PRESESPECE_BSE,
+             main.TOT_DEP_SDV_BSE
              
-          from orameps.CARTO_CT_DEP_G13_&yr. as main
+          from orameps.CRTO_CT_DEP_G13_&yr. as main
 
           inner join orauser.FC2 as FC2
              on main.BEN_IDT_ANO = FC2.BEN_IDT_ANO;
