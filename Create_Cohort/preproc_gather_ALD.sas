@@ -17,7 +17,7 @@
           from oravue.IR_IMB_R as main
 
           inner join orauser.FC2 as FC2
-             on main.BEN_NIR_ANO = FC2.BEN_NIR_ANO
+             on main.BEN_NIR_PSA = FC2.BEN_NIR_PSA
              and main.BEN_RNG_GEM = FC2.BEN_RNG_GEM 
           
           inner join oraval.IR_ALD_V as dico
