@@ -19,7 +19,7 @@
              on main.MED_MTF_COD = which_cim.CAT_CIM_COD
 
           where main.IMB_ALD_DTD >= FC2.dt_first_ad
-            and main.IMB_ALD_DTD <= FC2.dt_first_ad + &grace.;
+            and main.IMB_ALD_DTD <= FC2.dt_first_ad + %eval(366);
        quit;
 
 /* to sasdata1 */
