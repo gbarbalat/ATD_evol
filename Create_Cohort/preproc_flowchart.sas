@@ -17,7 +17,7 @@ format dt_first_ad DATETIME20.;*/
 /* 1a. Extract earliest antidepressant date per BEN_IDT_ANO */
 proc sql;
    create table work.first_ad_date as
-   select BEN_IDT_ANO, 
+   select *, 
           min(EXE_SOI_DTD) format=DATETIME20. as dt_first_ad_dt,
           datepart(min(EXE_SOI_DTD)) format=YYMMDD10. as dt_first_ad
    from sasdata1.FC1_2
@@ -33,7 +33,7 @@ proc sql;
           b.dt_first_ad_dt,
           b.dt_first_ad
    from sasdata1.FC1_1 as a
-   right join work.first_ad_date as b
+   left join work.first_ad_date as b
      on a.BEN_IDT_ANO = b.BEN_IDT_ANO;
 quit;
 
