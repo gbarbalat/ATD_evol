@@ -1,7 +1,7 @@
-/* from FC2, go to IR_IMB_R, and gather ALD */
+/* from FC2, go to ER_PRS_F, and gather a whole bunch of data */
 
       proc sql;
-          create table work.ald_extract_all as 
+          create table work.PRS_extract_all as 
           select 
              FC2.BEN_IDT_ANO,
              main.IMB_ALD_DTD, 
