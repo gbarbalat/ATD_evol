@@ -107,7 +107,7 @@
                    '690784152', '690784178', '690787478', '830100558'
                 )
             and main.EXE_SOI_DTD >= FC2.dt_first_ad
-            and main.EXE_SOI_DTD <= FC2.dt_first_ad + &grace.
+            and main.EXE_SOI_DTD <= FC2.dt_first_ad + %eval(366)
             and main.NIR_ANO_17 not in ('xxxxxxxxxxxxxxxxx', 'BXXXXXXXXXXXXXXXX')
             and &f_ent_mod.
             and &f_sor_mod.
@@ -139,7 +139,7 @@
 
 /* to sasdata1 */
 proc sql;
-   create table sasdata1.FC5 as
+   create table sasdata1.HAD as
    select *
    from work.ssr_extract_all;
 quit;
