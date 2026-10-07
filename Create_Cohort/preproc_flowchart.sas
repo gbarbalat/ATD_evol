@@ -48,8 +48,8 @@ proc sql;
       on f1.BEN_IDT_ANO = f2.BEN_IDT_ANO
    where /* f1.dt_first_ad_dt >= &exe_start. 
      and f1.dt_first_ad_dt <= &exe_end. */
-     /* and upcase(f2.PHA_ATC_CLA) like 'N06A%' */
-     and datepart(f2.EXE_SOI_DTD) < f1.dt_first_ad + &grace. ;
+     /* and upcase(f2.PHA_ATC_CLA) like 'N06A%' 
+     and */ datepart(f2.EXE_SOI_DTD) < f1.dt_first_ad + &grace. ;
 quit;
 
 proc sql;
