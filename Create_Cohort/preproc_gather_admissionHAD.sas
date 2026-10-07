@@ -107,7 +107,7 @@
                    '690784152', '690784178', '690787478', '830100558'
                 )
             and main.EXE_SOI_DTD >= FC2.dt_first_ad
-            and main.EXE_SOI_DTD <= FC2.dt_first_ad + 
+            and main.EXE_SOI_DTD <= FC2.dt_first_ad + &grace.
             and main.NIR_ANO_17 not in ('xxxxxxxxxxxxxxxxx', 'BXXXXXXXXXXXXXXXX')
             and &f_ent_mod.
             and &f_sor_mod.
