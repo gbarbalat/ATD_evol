@@ -32,8 +32,8 @@ proc sql;
    select a.*, 
           b.dt_first_ad_dt,
           b.dt_first_ad
-   from sasdata1.FC1_1 as a
-   left join work.first_ad_date as b
+   from orauser.FC1_1 as a
+   inner join work.first_ad_date as b
      on a.BEN_IDT_ANO = b.BEN_IDT_ANO;
 quit;
 
