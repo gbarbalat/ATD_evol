@@ -57,12 +57,14 @@
                prs.PRE_PRE_DTD,
                prs.PSP_SPE_COD,
                prs.PSP_ACT_NAT,
+			   prs.PSE_SPE_COD,
+               prs.PSE_ACT_NAT,
                prs.BEN_RES_DPT,
                prs.BEN_RES_COM, 
-               prs.PRS_GRS_DTD,
+               prs.PRS_GRS_DTD,			   
 
                pha.PHA_ACT_QSN,
-		   pha.PHA_PRS_C13,
+		   	   pha.PHA_PRS_C13,
                
                ref.PHA_FRM_LIB,
                ref.PHA_ATC_LIB,
@@ -95,7 +97,9 @@
                                       and "%sysfunc(strip(&exe_cur_e_c))"dt
               and prs.FLX_DIS_DTD = "%sysfunc(strip(&flx_cur_c))"dt  
               and prs.EXE_SOI_DTD >= FC2.dt_first_ad
-              and prs.EXE_SOI_DTD <= FC2.dt_first_ad + %eval(366);
+              and prs.EXE_SOI_DTD <= FC2.dt_first_ad + %eval(366)
+			  and prs.BEN_CDI_NIR = "00"
+			  and prs.DPN_QLF <> 71;
        quit;
 
          proc append base=WORK.ALL_ER_PRS_F data=WORK.QUERY_FOR_ER_PRS_F force;
