@@ -135,7 +135,7 @@
 
 /*example
 %extract_HAD(start=18, stop=19);*/
-%extract_HAD(start=06, stop=19);
+%extract_HAD(start=22, stop=24);
 
 /* to sasdata1 */
 proc sql;
