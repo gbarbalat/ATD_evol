@@ -1,5 +1,5 @@
-/* Macro variable for 01JAN2015 start threshold */
-%let cutoff_start = %sysfunc(inputn(01JAN2015:00:00:00, datetime20.));
+/* Macro variable for date start threshold */
+%let cutoff_start = %sysfunc(inputn(01JAN2022:00:00:00, datetime20.));
 
 /* Macro variables matching your environment setup */
 %let start     = 01JAN2015:00:00:00;
@@ -14,14 +14,14 @@ format dt_first_ad DATETIME20.;*/
 
 /* Step 1: Find First Antidepressant Date per Beneficiary & Append to FC1_1 */
 
-/* 1a. Extract earliest antidepressant date per BEN_IDT_ANO >= 01JAN2015 */
+/* 1a. Extract earliest antidepressant date per BEN_IDT_ANO */
 proc sql;
    create table work.first_ad_date as
    select BEN_IDT_ANO, 
           min(EXE_SOI_DTD) format=DATETIME20. as dt_first_ad_dt,
           datepart(min(EXE_SOI_DTD)) format=YYMMDD10. as dt_first_ad
    from sasdata1.FC1_2
-   where upcase(PHA_ATC_CLA) like 'N06A%'
+   where upcase(PHA_ATC_CLA) like 'N06AB%'
      and EXE_SOI_DTD >= &cutoff_start.
    group by BEN_IDT_ANO;
 quit;
