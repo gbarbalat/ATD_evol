@@ -52,7 +52,7 @@
 
 /* to sasdata1 */
 proc sql;
-   create table sasdata1.CARTO as
+   create table sasdata1.CARTO_DEP as
    select *
    from work.carto_extract_all;
 quit;
