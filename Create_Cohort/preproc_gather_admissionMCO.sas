@@ -106,6 +106,8 @@
                    '940100035', '940100043', '940100050', '940100068', '950100016', '690783154', '690784137', 
                    '690784152', '690784178', '690787478', '830100558'
                 )
+			and main.EXE_SOI_DTD >= FC2.dt_first_ad
+            and main.EXE_SOI_DTD <= FC2.dt_first_ad + &grace.
             and &f_grg_ghm.
             and &f_ent_mod.
             and &f_sor_mod.
