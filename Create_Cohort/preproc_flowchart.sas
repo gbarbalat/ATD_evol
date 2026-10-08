@@ -4,7 +4,7 @@
 /* Macro variables matching your environment setup */
 %let start     = 01JAN2015:00:00:00;
 %let end       = 31DEC2016:23:59:59;
-%let grace = %eval(366);  
+%let grace = %eval(30);  
 
 %let exe_start = %sysfunc(inputn(&start, datetime20.));
 %let exe_end   = %sysfunc(inputn(&end, datetime20.));
@@ -49,7 +49,7 @@ quit;
 /* Remove these individuals */
 proc sql;
    create table orauser.FC2 as
-   select *
+   select distinct BEN_IDT_ANO
    from sasdata1.fc1_1_with_dt
    where BEN_IDT_ANO not in (select BEN_IDT_ANO from work.excl_prior_ad);
 quit;
