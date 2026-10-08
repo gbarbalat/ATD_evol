@@ -4,7 +4,7 @@
 /* Macro variables matching your environment setup */
 %let start     = 01JAN2015:00:00:00;
 %let end       = 31DEC2016:23:59:59;
-%let grace = %eval(30);  
+%let grace = %eval(366);  
 
 %let exe_start = %sysfunc(inputn(&start, datetime20.));
 %let exe_end   = %sysfunc(inputn(&end, datetime20.));
