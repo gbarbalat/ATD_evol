@@ -57,7 +57,10 @@ quit;
 /* Remove these individuals */
 proc sql;
    create table orauser.FC2 as
-   select distinct BEN_IDT_ANO
+   select distinct 
+          BEN_IDT_ANO,
+          BEN_NIR_PSA,
+          BEN_RNG_GEM
    from sasdata1.fc1_1_with_dt
    where BEN_IDT_ANO not in (select BEN_IDT_ANO from work.excl_prior_ad);
 quit;
