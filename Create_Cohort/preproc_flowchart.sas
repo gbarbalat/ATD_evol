@@ -12,9 +12,7 @@
 /* Format definition for Datetime handling 
 format dt_first_ad DATETIME20.;*/
 
-/* Step 1: Find First Antidepressant Date per Beneficiary & Append to FC1_1 */
-
-/* 1a. Extract earliest antidepressant date per BEN_IDT_ANO */
+/* Find First Antidepressant Date per Beneficiary  */
 proc sql;
    create table work.first_ad_date as
    select *, 
@@ -26,7 +24,7 @@ proc sql;
    group by BEN_IDT_ANO;
 quit;
 
-/* 1b. Append date to FC1_1 */
+/* Append date to FC1_1 */
 proc sql;
    create table sasdata1.fc1_1_with_dt as
    select a.*, 
@@ -37,9 +35,7 @@ proc sql;
      on a.BEN_IDT_ANO = b.BEN_IDT_ANO;
 quit;
 
-/* Step 2:For individuals whose first antidepressant prescription occurred before other psychotropic prescription in FC1_2.
-Exclude those individuals */
-
+/* Keep individuals whose first antidepressant prescription occurred before other psychotropic prescription in FC1_2 */
 proc sql;
    create table work.excl_prior_ad as
    select distinct f1.BEN_IDT_ANO
