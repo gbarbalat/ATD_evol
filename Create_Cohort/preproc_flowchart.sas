@@ -38,7 +38,7 @@ quit;
 /* Take individuals whose first antidepressant prescription occurred after other psychotropic prescription in FC1_2 */
 proc sql;
    create table work.excl_prior_ad as
-   select distinct f1.BEN_IDT_ANO
+   select distinct f1.BEN_IDT_ANO, f1.BEN_NIR_PSA, f1.BEN_RNG_GEM, f1.MAX_TRT_DTD, f1.BEN_DCD_DTE, f1.dt_first_ad
    from sasdata1.fc1_1_with_dt as f1
    inner join sasdata1.FC1_2 as f2
       on f1.BEN_IDT_ANO = f2.BEN_IDT_ANO
@@ -60,7 +60,10 @@ proc sql;
    select distinct 
           BEN_IDT_ANO,
           BEN_NIR_PSA,
-          BEN_RNG_GEM
+          BEN_RNG_GEM,
+          MAX_TRT_DTD, 
+          BEN_DCD_DTE, 
+          dt_first_ad
    from sasdata1.fc1_1_with_dt
    where BEN_IDT_ANO not in (select BEN_IDT_ANO from work.excl_prior_ad);
 quit;
