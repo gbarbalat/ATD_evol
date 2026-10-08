@@ -42,10 +42,8 @@ proc sql;
    from sasdata1.fc1_1_with_dt as f1
    inner join sasdata1.FC1_2 as f2
       on f1.BEN_IDT_ANO = f2.BEN_IDT_ANO
-   where /* f1.dt_first_ad_dt >= &exe_start. 
-     and f1.dt_first_ad_dt <= &exe_end. */
-     /* and upcase(f2.PHA_ATC_CLA) like 'N06A%' 
-     and */ datepart(f2.EXE_SOI_DTD) - f1.dt_first_ad < &grace. ;
+   where datepart(f2.EXE_SOI_DTD) - f1.dt_first_ad < &grace.
+     and datepart(f2.EXE_SOI_DTD) - f1.dt_first_ad >= -365;
 quit;
 
 /* Remove these individuals */
