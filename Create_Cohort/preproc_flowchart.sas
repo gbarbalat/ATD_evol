@@ -42,8 +42,16 @@ proc sql;
    from sasdata1.fc1_1_with_dt as f1
    inner join sasdata1.FC1_2 as f2
       on f1.BEN_IDT_ANO = f2.BEN_IDT_ANO
-   where datepart(f2.EXE_SOI_DTD) - f1.dt_first_ad < &grace.
-     and datepart(f2.EXE_SOI_DTD) - f1.dt_first_ad >= -365;
+   where (
+          (datepart(f2.EXE_SOI_DTD) - f1.dt_first_ad >= -365 
+           and datepart(f2.EXE_SOI_DTD) - f1.dt_first_ad < 0)
+          
+          /* Grace period window: 0 to &grace days, EXCLUDING SSRIs (N06AB%) */
+          or 
+          (datepart(f2.EXE_SOI_DTD) - f1.dt_first_ad >= 0 
+           and datepart(f2.EXE_SOI_DTD) - f1.dt_first_ad <= &grace. 
+           and upcase(f2.PHA_ATC_CLA) not like 'N06AB%')
+         );
 quit;
 
 /* Remove these individuals */
