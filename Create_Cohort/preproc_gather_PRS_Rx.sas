@@ -1,4 +1,4 @@
-/* from FC2, go to ER_PRS_F, and gather a whole bunch of data */
+/* from FC2, go to ER_PRS_F, and gather a whole bunch of Rx data */
 
 %macro loop_exe_and_flx_PRS_Rx(start=01JAN2015:00:00:00, stop=31DEC2015:23:59:59);
 
