@@ -49,6 +49,7 @@
 			   FC2.BEN_IDT_ANO,
 			   FC2.MAX_TRT_DTD,
 			   FC2.BEN_DCD_DTE,
+			   FC2.DT_FIRST_AD,
 
                prs.BEN_NIR_PSA,
                prs.BEN_RNG_GEM,
@@ -96,7 +97,7 @@
             where prs.EXE_SOI_DTD between "%sysfunc(strip(&exe_cur_b_c))"dt 
                                       and "%sysfunc(strip(&exe_cur_e_c))"dt
               and prs.FLX_DIS_DTD = "%sysfunc(strip(&flx_cur_c))"dt  
-              and prs.EXE_SOI_DTD >= FC2.dt_first_ad
+              and prs.EXE_SOI_DTD >= FC2.dt_first_ad - %eval(366)
               and prs.EXE_SOI_DTD <= FC2.dt_first_ad + %eval(366)
 			  and prs.BEN_CDI_NIR = "00"
 			  and prs.DPN_QLF <> 71;
@@ -129,7 +130,7 @@
 
 /* Execution Example 
 %loop_exe_and_flx_FC1_2(start=01JAN2015:00:00:00, stop=31JAN2015:23:59:59);*/
-%loop_exe_and_flx_PRS(start=01JAN2022:00:00:00, stop=31DEC2024:23:59:59);
+%loop_exe_and_flx_PRS(start=01JAN2021:00:00:00, stop=31DEC2024:23:59:59);
 
 /* to sasdata1 */
 proc sql;
