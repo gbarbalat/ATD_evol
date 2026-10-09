@@ -55,6 +55,8 @@
                prs.BEN_RNG_GEM,
                prs.BEN_AMA_COD,
                prs.EXE_SOI_DTD,
+			   (prs.EXE_SOI_DTD - FC2.DT_FIRST_AD) / 86400 as diff_days,
+
                prs.PRE_PRE_DTD,
                prs.PSP_SPE_COD,
                prs.PSP_ACT_NAT,
@@ -100,14 +102,17 @@
             where prs.EXE_SOI_DTD between "%sysfunc(strip(&exe_cur_b_c))"dt 
                                       and "%sysfunc(strip(&exe_cur_e_c))"dt
               and prs.FLX_DIS_DTD = "%sysfunc(strip(&flx_cur_c))"dt  
-              and prs.EXE_SOI_DTD >= FC2.dt_first_ad - %eval(366)
-              and prs.EXE_SOI_DTD <= FC2.dt_first_ad + %eval(366)
 			  and prs.BEN_CDI_NIR = "00"
 			  and prs.DPN_QLF <> 71;
        quit;
 
          proc append base=WORK.ALL_ER_PRS_F_Rx data=WORK.QUERY_FOR_ER_PRS_F_Rx force;
          run;
+
+		data WORK.ALL_ER_PRS_F_Rx;
+		   set WORK.ALL_ER_PRS_F_Rx;
+		   where diff_days >= -366 and diff_days <= 366;
+		run;
 
          /* Advance FLX by 1 month */
          %let flx_cur = %sysfunc(intnx(dtmonth, &flx_cur, 1, b));
@@ -129,7 +134,7 @@
 
    %put NOTE: Nested monthly loops finished successfully.;
 
-%mend loop_exe_and_flx_PRS;
+%mend loop_exe_and_flx_PRS_Rx;
 
 /* Execution Example*/
 %loop_exe_and_flx_PRS_Rx(start=01JAN2021:00:00:00, stop=31DEC2024:23:59:59);
