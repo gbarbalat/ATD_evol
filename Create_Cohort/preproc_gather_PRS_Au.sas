@@ -65,7 +65,7 @@
 			   prs.RGM_GRG_COD, /* =1 pour AAH */
                prs.BEN_RES_DPT,
                prs.BEN_RES_COM, 
-               prs.PRS_GRS_DTD
+               prs.PRS_GRS_DTD,prs.EXE_SOI_DTD - FC2.dt_first_ad
 
             from oravue.ER_PRS_F as prs
 
@@ -77,8 +77,10 @@
             where prs.EXE_SOI_DTD between "%sysfunc(strip(&exe_cur_b_c))"dt 
                                       and "%sysfunc(strip(&exe_cur_e_c))"dt
               and prs.FLX_DIS_DTD = "%sysfunc(strip(&flx_cur_c))"dt  
-			  and datepart(prs.EXE_SOI_DTD) >= datepart(FC2.dt_first_ad) - 366
-  			  and datepart(prs.EXE_SOI_DTD) <= datepart(FC2.dt_first_ad) + 366
+			  and (prs.EXE_SOI_DTD - FC2.dt_first_ad)/ 86400 >=  - 366
+  			  and (prs.EXE_SOI_DTD - FC2.dt_first_ad)/ 86400 <=  + 366
+
+			  
 
 			  and prs.BEN_CDI_NIR = "00"
 			  and prs.DPN_QLF <> 71;
@@ -102,7 +104,7 @@
    quit;
 
    proc sort data=WORK.ALL_ER_PRS_F_Au out=WORK.ALL_ER_PRS_F_dedup_Au nodupkey;
-   		by ben_idt_ano exe_soi_dtd ben_res_dpt pha_act_qsn pha_prs_c13;
+   		by ben_idt_ano exe_soi_dtd ben_res_dpt ;
    run;
 
    %put NOTE: Nested monthly loops finished successfully.;
