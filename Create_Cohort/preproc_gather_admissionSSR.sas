@@ -135,7 +135,7 @@
 
 /*example 
 %extract_SSR(start=18, stop=19); */
-%extract_SSR(start=22, stop=24);
+%extract_SSR(start=21, stop=24);
 
 /* to sasdata1 */
 proc sql;
