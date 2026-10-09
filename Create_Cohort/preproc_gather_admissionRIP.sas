@@ -157,7 +157,7 @@
 %mend extract_RIP;
 /* Execution 
 %extract_RIP(start=09, stop=10);*/
-%extract_RIP(start=22, stop=24);
+%extract_RIP(start=21, stop=24);
 
 
 /* to sasdata1 */
