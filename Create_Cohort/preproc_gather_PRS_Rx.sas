@@ -1,6 +1,6 @@
 /* from FC2, go to ER_PRS_F, and gather a whole bunch of data */
 
-%macro loop_exe_and_flx_PRS(start=01JAN2015:00:00:00, stop=31DEC2015:23:59:59);
+%macro loop_exe_and_flx_PRS_Rx(start=01JAN2015:00:00:00, stop=31DEC2015:23:59:59);
 
    %local exe_start exe_stop_limit 
           exe_cur_b exe_cur_e exe_cur_b_c exe_cur_e_c
@@ -14,7 +14,7 @@
    %let exe_cur_b = %sysfunc(intnx(dtmonth, &exe_start, 0, b));
 
    proc datasets lib=work nolist;
-   		delete ALL_ER_PRS_F;
+   		delete ALL_ER_PRS_F_Rx;
    quit;
 
    /* ==================== OUTER LOOP: EXE_SOI_DTD ==================== */
@@ -44,7 +44,7 @@
          %put NOTE: Processing EXE range [&exe_cur_b_c TO &exe_cur_e_c] with FLX_DIS_DTD = &flx_cur_c;
 
          proc sql;
-            create table WORK.QUERY_FOR_ER_PRS_F as
+            create table WORK.QUERY_FOR_ER_PRS_F_Rx as
             select 
 			   FC2.BEN_IDT_ANO,
 			   FC2.MAX_TRT_DTD,
@@ -60,6 +60,9 @@
                prs.PSP_ACT_NAT,
 			   prs.PSE_SPE_COD,
                prs.PSE_ACT_NAT,
+			   prs.RGO_ASU_NAT, /* 40 AT/MP, 80 Invalidité */
+			   prs.RGM_COD, /* code petit regime pour AAH = 180 181 188 189 */
+			   prs.RGM_GRG_COD, /* =1 pour AAH */
                prs.BEN_RES_DPT,
                prs.BEN_RES_COM, 
                prs.PRS_GRS_DTD,			   
@@ -103,7 +106,7 @@
 			  and prs.DPN_QLF <> 71;
        quit;
 
-         proc append base=WORK.ALL_ER_PRS_F data=WORK.QUERY_FOR_ER_PRS_F force;
+         proc append base=WORK.ALL_ER_PRS_F_Rx data=WORK.QUERY_FOR_ER_PRS_F_Rx force;
          run;
 
          /* Advance FLX by 1 month */
@@ -117,10 +120,10 @@
    %end; /* End Outer Loop */
 
    proc datasets lib=work nolist;
-      delete QUERY_FOR_ER_PRS_F;
+      delete QUERY_FOR_ER_PRS_F_Rx;
    quit;
 
-   proc sort data=WORK.ALL_ER_PRS_F out=WORK.ALL_ER_PRS_F_dedup nodupkey;
+   proc sort data=WORK.ALL_ER_PRS_F_Rx out=WORK.ALL_ER_PRS_F_dedup_Rx nodupkey;
    		by ben_idt_ano exe_soi_dtd ben_res_dpt pha_act_qsn pha_prs_c13;
    run;
 
@@ -128,13 +131,12 @@
 
 %mend loop_exe_and_flx_PRS;
 
-/* Execution Example 
-%loop_exe_and_flx_FC1_2(start=01JAN2015:00:00:00, stop=31JAN2015:23:59:59);*/
-%loop_exe_and_flx_PRS(start=01JAN2021:00:00:00, stop=31DEC2024:23:59:59);
+/* Execution Example*/
+%loop_exe_and_flx_PRS_Rx(start=01JAN2021:00:00:00, stop=31DEC2024:23:59:59);
 
 /* to sasdata1 */
 proc sql;
-   create table sasdata1.PRS as
+   create table sasdata1.PRS_Rx as
    select *
-   from work.all_er_prs_f;
+   from work.all_er_prs_f_Rx;
 quit;
