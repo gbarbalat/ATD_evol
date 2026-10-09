@@ -77,9 +77,9 @@
             where prs.EXE_SOI_DTD between "%sysfunc(strip(&exe_cur_b_c))"dt 
                                       and "%sysfunc(strip(&exe_cur_e_c))"dt
               and prs.FLX_DIS_DTD = "%sysfunc(strip(&flx_cur_c))"dt  
-              and prs.EXE_SOI_DTD >= FC2.dt_first_ad - %eval(366)
-              and prs.EXE_SOI_DTD <= FC2.dt_first_ad + %eval(366)
-              
+			  and datepart(prs.EXE_SOI_DTD) >= datepart(FC2.dt_first_ad) - 366
+  			  and datepart(prs.EXE_SOI_DTD) <= datepart(FC2.dt_first_ad) + 366
+
 			  and prs.BEN_CDI_NIR = "00"
 			  and prs.DPN_QLF <> 71;
        quit;
