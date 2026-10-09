@@ -136,7 +136,7 @@
 
 /* Execution 
 %extract_MCO(start=18, stop=19);*/
-%extract_MCO(start=22, stop=24);
+%extract_MCO(start=21, stop=24);
 
 /* to sasdata1 */
 proc sql;
