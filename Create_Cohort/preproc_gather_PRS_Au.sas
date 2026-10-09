@@ -107,7 +107,7 @@
 
    %put NOTE: Nested monthly loops finished successfully.;
 
-%mend loop_exe_and_flx_PRS;
+%mend loop_exe_and_flx_PRS_Au;
 
 /* Execution Example*/
 %loop_exe_and_flx_PRS_Au(start=01JAN2021:00:00:00, stop=31DEC2024:23:59:59);
