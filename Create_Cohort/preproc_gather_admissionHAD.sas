@@ -82,6 +82,7 @@
              'HAD' as source_db length=3,
              main.NIR_ANO_17, 
              main.EXE_SOI_DTD, 
+			 (main.EXE_SOI_DTD - FC2.DT_FIRST_AD)/86400 as diff_days,
              main.EXE_SOI_DTF,
              for_dx.AGE_ANN,
              &f_dgn_pal_select.,
