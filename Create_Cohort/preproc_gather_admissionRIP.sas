@@ -91,6 +91,7 @@
              'RIP' as source_db length=3,
              main.NIR_ANO_17, 
              main.EXE_SOI_DTD, 
+			 (main.EXE_SOI_DTD - FC2.DT_FIRST_AD) / 86400 as diff_days,
              main.EXE_SOI_DTF, 
              &f_dgn_pal_select.,
              for_dx.AGE_ANN,
@@ -125,8 +126,6 @@
                    '940100035', '940100043', '940100050', '940100068', '950100016', '690783154', '690784137', 
                    '690784152', '690784178', '690787478', '830100558'
                 )
-			and main.EXE_SOI_DTD >= FC2.dt_first_ad
-            and main.EXE_SOI_DTD <= FC2.dt_first_ad + %eval(366)
             and &f_coh_nai_ret_flg.
             and &f_coh_sex_ret_flg.
             and &f_typ_gen_rsa_flg.
@@ -145,6 +144,11 @@
 
        proc append base=work.rip_extract_all data=work.rip_extract_tmp force;
        run;
+
+	   	data work.rip_extract_all;
+		   set work.rip_extract_all;
+		   where diff_days >= -366 and diff_days <= 366;
+		run;
 
        %next_rip_year:
 
