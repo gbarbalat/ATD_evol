@@ -126,10 +126,10 @@
        proc append base=work.had_extract_all data=work.had_extract_tmp force;
        run;
 
-		/*data work.had_extract_all;
+		data work.had_extract_all;
 		   set work.had_extract_all;
 		   where diff_days >= -366 and diff_days <= 366;
-		run;*/
+		run;
 
        %next_year:
 
