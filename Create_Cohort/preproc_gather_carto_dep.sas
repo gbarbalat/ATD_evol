@@ -1,6 +1,6 @@
 /* from 2015 to 2024, gather information on the severest cases */
 
-%macro extract_CARTO(start=2015, stop=2024);
+%macro extract_CARTO(start=2015, stop=2023);
 
    /* 1. Reset master output table */
    proc datasets lib=work nolist;
@@ -48,7 +48,7 @@
 
 /*example
 %extract_HAD(start=18, stop=19);*/
-%extract_CARTO(start=2015, stop=2024);
+%extract_CARTO(start=2015, stop=2023);
 
 /* to sasdata1 */
 proc sql;
