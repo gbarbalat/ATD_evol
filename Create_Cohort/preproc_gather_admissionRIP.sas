@@ -107,7 +107,7 @@
              
           from oravue.T_RIP&yr.C as main
 
-          inner join orauser.FC1_1 as FC2
+          inner join orauser.FC2 as FC2
              on main.NIR_ANO_17 = FC2.BEN_NIR_PSA
 
           inner join oravue.T_RIP&yr.RSA as for_dx
