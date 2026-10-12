@@ -15,21 +15,11 @@
        /* EXECUTION                                                          */
        /* ------------------------------------------------------------------ */
        proc sql;
-          create table work.carto_extract_tmp as 
+          create table work.carto_extract_base as 
           select 
              FC2.BEN_IDT_ANO,
              'CARTO' as source_db length=5,
-             main.PSY_*,   /* Selects all variables starting with PSY_ */
-             main.TPS_*,    /* Selects all variables starting with TPS_ */      
-             
-             main.ASS_AAH_TOP,  
-             main.BEN_ACS_TOP,
-             main.BEN_ALD_TOP,
-             main.CMU,
-             main.TOP_C2S_GRA,
-             main.TOP_C2S_PAR,
-             main.TOP_IND,
-             main.TOP_MT
+             main.*
 
           from orameps.CRTO_CT_IND_G13_&yr. as main
 
@@ -37,6 +27,14 @@
              on main.BEN_IDT_ANO = FC2.BEN_IDT_ANO;
              
        quit;
+
+      data work.carto_extract_tmp;
+         set work.carto_extract_base;
+         keep BEN_IDT_ANO source_db 
+           psy_:     /* Equivalent to starts_with("PSY_") */
+           tps_:     /* Equivalent to starts_with("TPS_") */
+           ASS_AAH_TOP BEN_ACS_TOP BEN_ALD_TOP CMU TOP_C2S_GRA TOP_C2S_PAR TOP_IND TOP_MT;
+      run;
 
        proc append base=work.carto_extract_all data=work.carto_extract_tmp force;
        run;
