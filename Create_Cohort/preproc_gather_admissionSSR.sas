@@ -81,6 +81,7 @@
              'SSR' as source_db length=3,
              main.NIR_ANO_17, 
              main.EXE_SOI_DTD, 
+             (main.EXE_SOI_DTD - FC2.DT_FIRST_AD)/86400 as diff_days,
              main.EXE_SOI_DTF, 
              &f_ass_dgn_1_select.,
              which_cim.CIM_LIL,
@@ -106,8 +107,6 @@
                    '940100035', '940100043', '940100050', '940100068', '950100016', '690783154', '690784137', 
                    '690784152', '690784178', '690787478', '830100558'
                 )
-            and main.EXE_SOI_DTD >= FC2.dt_first_ad
-            and main.EXE_SOI_DTD <= FC2.dt_first_ad + %eval(366)
             and main.NIR_ANO_17 not in ('xxxxxxxxxxxxxxxxx', 'BXXXXXXXXXXXXXXXX')
             and &f_ent_mod.
             and &f_sor_mod.
@@ -122,6 +121,11 @@
 
        proc append base=work.ssr_extract_all data=work.ssr_extract_tmp force;
        run;
+
+		data work.ssr_extract_all;
+		   set work.ssr_extract_all;
+		   where diff_days >= -366 and diff_days <= 366;
+		run;
 
        %next_ssr_year:
 
