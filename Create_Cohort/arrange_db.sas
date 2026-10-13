@@ -369,3 +369,7 @@ proc sql;
       f.HasALDPsy,
       f.HasALDNonPsy;
 quit;
+
+
+/* Now check for SSR admission */
+
