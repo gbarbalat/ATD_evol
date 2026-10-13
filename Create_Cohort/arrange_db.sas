@@ -206,3 +206,166 @@ proc sql;
 	  f.HasAnx,
 	  f.HasOtherMeds;
 quit;
+
+
+
+
+
+/* Now check for ALD */
+proc sql;
+   create table work.prs_meds_visits_ald as
+   select 
+      f.BEN_IDT_ANO,
+      f.DT_FIRST_AD,
+      f.BEN_AMA_COD,
+      f.BEN_RES_DPT,
+      f.BEN_RES_COM,
+      f.EXE_SOI_DTD,
+      f.next_exe_date,
+      f.PHA_ATC_CLA,
+      f.PHA_ATC_LIB, 
+      f.PHA_ACT_QSN,
+      f.PSP_SPE_COD,
+      f.PSP_ACT_NAT,
+      f.RGO_ASU_NAT,
+      f.RGM_COD,
+      f.RGM_GRG_COD,
+	  f.HasAnx,
+	  f.HasOtherMeds,
+	  f.HasATMPInv,
+	  f.HasAAH,
+	  f.SeenGP,
+	  f.SeenPsych,
+	  f.SeenOtherMed,
+	  f.SeenNonMed,
+      
+      /* Check for ALD Psy */
+      case when coalesce(max(r.is_ALD23), 0) = 1 then 'Yes' else 'No' end as HasALDPsy,
+      
+      /* Check for AAH */
+      case when coalesce(max(r.is_ALDNot23), 0) = 1 then 'Yes' else 'No' end as HasALDNonPsy
+
+   from work.prs_intervals_meds_visits as f
+   left join (
+      select 
+         BEN_IDT_ANO,
+         datepart(IMB_ALD_DTD) as exe_date,
+		 datepart(IMB_ALD_DTF) as end_date,
+		case when ALD_030_LIB = "Affections psychiatriques de longue durée" then 1 else 0 end as is_ALD23,
+		case when ALD_030_LIB ne "Affections psychiatriques de longue durée" and ALD_030_LIB ne ' ' then 1 else 0 end as is_ALDNot23
+		 
+      from sasdata1.ald
+   ) as r
+      on f.BEN_IDT_ANO = r.BEN_IDT_ANO
+     and r.exe_date <= f.EXE_SOI_DTD
+	 and r.end_date >= f.EXE_SOI_DTD
+     and (f.next_exe_date is null or r.exe_date < f.next_exe_date)
+     
+   group by 
+      f.BEN_IDT_ANO,
+      f.DT_FIRST_AD,
+      f.BEN_AMA_COD,
+      f.BEN_RES_DPT,
+      f.BEN_RES_COM,
+      f.EXE_SOI_DTD,
+      f.next_exe_date,
+      f.PHA_ATC_CLA,
+      f.PHA_ATC_LIB, 
+      f.PHA_ACT_QSN,
+      f.PSP_SPE_COD,
+      f.PSP_ACT_NAT,
+      f.RGO_ASU_NAT,
+      f.RGM_COD,
+      f.RGM_GRG_COD,
+	  f.HasAnx,
+	  f.HasOtherMeds,
+	  f.HasATMPInv,
+	  f.HasAAH,
+	  f.SeenGP,
+	  f.SeenPsych,
+	  f.SeenOtherMed,
+	  f.SeenNonMed;
+quit;
+
+
+
+/* Now check for ORC */
+data sasdata1.orc;
+   set sasdata1.orc;
+   exe_date = datepart(MLL_CTA_DSD);
+   end_date = datepart(MLL_CTA_DSF);
+   format exe_date end_date ;
+run;
+proc sql;
+   create table work.prs_meds_visits_ald_orc as
+   select 
+      f.BEN_IDT_ANO,
+      f.DT_FIRST_AD,
+      f.BEN_AMA_COD,
+      f.BEN_RES_DPT,
+      f.BEN_RES_COM,
+      f.EXE_SOI_DTD,
+      f.next_exe_date,
+      f.PHA_ATC_CLA,
+      f.PHA_ATC_LIB, 
+      f.PHA_ACT_QSN,
+      f.PSP_SPE_COD,
+      f.PSP_ACT_NAT,
+      f.RGO_ASU_NAT,
+      f.RGM_COD,
+      f.RGM_GRG_COD,
+      f.HasAnx,
+      f.HasOtherMeds,
+      f.HasATMPInv,
+      f.HasAAH,
+      f.SeenGP,
+      f.SeenPsych,
+      f.SeenOtherMed,
+      f.SeenNonMed,
+      f.HasALDPsy,
+      f.HasALDNonPsy,
+      
+      /* Check for C2S */
+      case when coalesce(max(r.is_C2S), 0) = 1 then 'Yes' else 'No' end as HasC2S
+      
+   from work.prs_meds_visits_ald as f
+   left join (
+      select 
+         BEN_IDT_ANO,
+         exe_date,
+         end_date,
+         case when BEN_CTA_TYP = 89 then 1 else 0 end as is_C2S
+      from sasdata1.orc
+   ) as r
+      on f.BEN_IDT_ANO = r.BEN_IDT_ANO
+     and r.exe_date <= datepart(f.EXE_SOI_DTD)
+     and r.end_date >= datepart(f.EXE_SOI_DTD)
+     and (f.next_exe_date is null or r.exe_date < datepart(f.next_exe_date))
+     
+   group by 
+      f.BEN_IDT_ANO,
+      f.DT_FIRST_AD,
+      f.BEN_AMA_COD,
+      f.BEN_RES_DPT,
+      f.BEN_RES_COM,
+      f.EXE_SOI_DTD,
+      f.next_exe_date,
+      f.PHA_ATC_CLA,
+      f.PHA_ATC_LIB, 
+      f.PHA_ACT_QSN,
+      f.PSP_SPE_COD,
+      f.PSP_ACT_NAT,
+      f.RGO_ASU_NAT,
+      f.RGM_COD,
+      f.RGM_GRG_COD,
+      f.HasAnx,
+      f.HasOtherMeds,
+      f.HasATMPInv,
+      f.HasAAH,
+      f.SeenGP,
+      f.SeenPsych,
+      f.SeenOtherMed,
+      f.SeenNonMed,
+      f.HasALDPsy,
+      f.HasALDNonPsy;
+quit;
