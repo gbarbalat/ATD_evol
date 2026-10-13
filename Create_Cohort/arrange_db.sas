@@ -172,10 +172,10 @@ proc sql;
       select 
          BEN_IDT_ANO,
          datepart(EXE_SOI_DTD) as exe_date,
-		 case when PSP_SPE_COD=1 then 1 else 0 end as is_GP,
-		 case when PSP_SPE_COD=33 then 1 else 0 end as is_Psych,
-         case when PSP_SPE_COD not in (1,33) then 1 else 0 end as is_OtherMed,
-		 case when PSP_SPE_COD=0 then 1 else 0 end as is_SeenNonMed,
+		 case when PSE_SPE_COD=1 then 1 else 0 end as is_GP,
+		 case when PSE_SPE_COD=33 then 1 else 0 end as is_Psych,
+         case when PSE_SPE_COD not in (0, 1,33) then 1 else 0 end as is_OtherMed,
+		 case when PSE_SPE_COD=0 then 1 else 0 end as is_SeenNonMed,
 
          case when RGO_ASU_NAT in (40,80) then 1 else 0 end as is_ATMPInv,
          case when (RGM_COD in (180,181, 188, 189) and RGM_GRG_COD=1) then 1 else 0 end as is_AAH,
