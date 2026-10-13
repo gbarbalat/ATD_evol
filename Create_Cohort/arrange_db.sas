@@ -74,9 +74,135 @@ data work.prs_intervals;
 run;
 
 
+/* check for other meds in prs_rx */
+proc sql;
+   create table work.prs_intervals_flagged as
+   select 
+      f.BEN_IDT_ANO,
+      f.DT_FIRST_AD,
+      f.BEN_AMA_COD,
+      f.BEN_RES_DPT,
+      f.BEN_RES_COM,
+      f.EXE_SOI_DTD,
+      f.next_exe_date,
+      f.PHA_ATC_CLA,
+      f.PHA_ATC_LIB, 
+      f.PHA_ACT_QSN,
+      f.PSP_SPE_COD,
+      f.PSP_ACT_NAT,
+      f.RGO_ASU_NAT,
+      f.RGM_COD,
+      f.RGM_GRG_COD,
+      
+      /* Check for Anxiolytics / Hypnotics */
+      case when coalesce(max(r.is_anx), 0) = 1 then 'Yes' else 'No' end as HasAnx,
+      
+      /* Check for Other Meds (Neither N05B nor N05C) */
+      case when coalesce(max(r.is_other), 0) = 1 then 'Yes' else 'No' end as HasOtherMeds
+
+   from work.prs_intervals as f
+   left join (
+      select 
+         BEN_IDT_ANO,
+         datepart(EXE_SOI_DTD) as exe_date,
+         case when PHA_ATC_CLA like 'N05B%' or PHA_ATC_CLA like 'N05C%' then 1 else 0 end as is_anx,
+         case when not (PHA_ATC_CLA like 'N05B%' or PHA_ATC_CLA like 'N05C%') then 1 else 0 end as is_other
+      from sasdata1.prs_rx
+   ) as r
+      on f.BEN_IDT_ANO = r.BEN_IDT_ANO
+     and r.exe_date > f.EXE_SOI_DTD
+     and (f.next_exe_date is null or r.exe_date < f.next_exe_date)
+     
+   group by 
+      f.BEN_IDT_ANO,
+      f.DT_FIRST_AD,
+      f.BEN_AMA_COD,
+      f.BEN_RES_DPT,
+      f.BEN_RES_COM,
+      f.EXE_SOI_DTD,
+      f.next_exe_date,
+      f.PHA_ATC_CLA,
+      f.PHA_ATC_LIB, 
+      f.PHA_ACT_QSN,
+      f.PSP_SPE_COD,
+      f.PSP_ACT_NAT,
+      f.RGO_ASU_NAT,
+      f.RGM_COD,
+      f.RGM_GRG_COD;
+quit;
 
 
-/* =====================================================================
-   STEP 2: Evaluate intervals against the raw claims table (sasdata1.prs_rx)
-   To count visits and check for other meds between EXE_SOI_DTD and next_exe_date
-   ===================================================================== */
+
+/* Now count visits between EXE_SOI_DTD and next_exe_date */
+proc sql;
+   create table work.prs_intervals_meds_visits as
+   select 
+      f.BEN_IDT_ANO,
+      f.DT_FIRST_AD,
+      f.BEN_AMA_COD,
+      f.BEN_RES_DPT,
+      f.BEN_RES_COM,
+      f.EXE_SOI_DTD,
+      f.next_exe_date,
+      f.PHA_ATC_CLA,
+      f.PHA_ATC_LIB, 
+      f.PHA_ACT_QSN,
+      f.PSP_SPE_COD,
+      f.PSP_ACT_NAT,
+      f.RGO_ASU_NAT,
+      f.RGM_COD,
+      f.RGM_GRG_COD,
+	  f.HasAnx,
+	  f.HasOtherMeds,
+      
+      /* Check for ATMPInv */
+      case when coalesce(max(r.is_ATMPInv), 0) = 1 then 'Yes' else 'No' end as HasATMPInv,
+      
+      /* Check for AAH */
+      case when coalesce(max(r.is_AAH), 0) = 1 then 'Yes' else 'No' end as HasAAH,
+
+	   /* Check for Seen by */
+      case when coalesce(max(r.is_GP), 0) = 1 then 'Yes' else 'No' end as SeenGP,
+      case when coalesce(max(r.is_Psych), 0) = 1 then 'Yes' else 'No' end as SeenPsych,
+	  case when coalesce(max(r.is_OtherMed), 0) = 1 then 'Yes' else 'No' end as SeenOtherMed,
+	  case when coalesce(max(r.is_SeenNonMed), 0) = 1 then 'Yes' else 'No' end as SeenNonMed
+
+   from work.prs_intervals_flagged as f
+   left join (
+      select 
+         BEN_IDT_ANO,
+         datepart(EXE_SOI_DTD) as exe_date,
+		 case when PSP_SPE_COD=1 then 1 else 0 end as is_GP,
+		 case when PSP_SPE_COD=33 then 1 else 0 end as is_Psych,
+         case when PSP_SPE_COD not in (1,33) then 1 else 0 end as is_OtherMed,
+		 case when PSP_SPE_COD=0 then 1 else 0 end as is_SeenNonMed,
+
+         case when RGO_ASU_NAT in (40,80) then 1 else 0 end as is_ATMPInv,
+         case when (RGM_COD in (180,181, 188, 189) and RGM_GRG_COD=1) then 1 else 0 end as is_AAH,
+
+		 case when PRS_GRS_DTD in (40,80) then 1 else 0 end as is_ATMPInv
+      from sasdata1.prs_au
+   ) as r
+      on f.BEN_IDT_ANO = r.BEN_IDT_ANO
+     and r.exe_date > f.EXE_SOI_DTD
+     and (f.next_exe_date is null or r.exe_date < f.next_exe_date)
+     
+   group by 
+      f.BEN_IDT_ANO,
+      f.DT_FIRST_AD,
+      f.BEN_AMA_COD,
+      f.BEN_RES_DPT,
+      f.BEN_RES_COM,
+      f.EXE_SOI_DTD,
+      f.next_exe_date,
+      f.PHA_ATC_CLA,
+      f.PHA_ATC_LIB, 
+      f.PHA_ACT_QSN,
+      f.PSP_SPE_COD,
+      f.PSP_ACT_NAT,
+      f.RGO_ASU_NAT,
+      f.RGM_COD,
+      f.RGM_GRG_COD,
+	  f.HasAnx,
+	  f.HasOtherMeds;
+quit;
