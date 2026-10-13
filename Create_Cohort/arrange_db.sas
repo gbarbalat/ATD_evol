@@ -43,15 +43,40 @@ proc sort data=work.filtered_prs nodup;
    by BEN_IDT_ANO EXE_SOI_DTD;
 run;  
 
+data work.filtered_prs2;
+   set work.filtered_prs;
+   
+   /* Extract pure dates from the datetime timestamps */
+   DT_FIRST_AD = datepart(DT_FIRST_AD);
+   EXE_SOI_DTD = datepart(EXE_SOI_DTD);
+   
+   /* Apply standard date formatting */
+   format DT_FIRST_AD EXE_SOI_DTD DATE9.;
+run;
+
 /* Step 3: Add next_exe_date using a universal correlated subquery */
 proc sql;
-   create table work.filtered_prs2 as
+   create table work.filtered_prs3 as
    select 
       t1.*,
       /* Finds the earliest dispensing date that occurs strictly after the current one */
       (select min(t2.EXE_SOI_DTD) 
-       from work.filtered_prs as t2 
+       from work.filtered_prs2 as t2 
        where t2.BEN_IDT_ANO = t1.BEN_IDT_ANO 
-         and t2.EXE_SOI_DTD > t1.EXE_SOI_DTD) as next_exe_date format=DATE9.
-   from work.filtered_prs as t1;
+         and t2.EXE_SOI_DTD > t1.EXE_SOI_DTD) as next_exe_date
+   from work.filtered_prs2 as t1;
 quit;
+
+/* Step 4: Apply date formats cleanly in a DATA step */
+data work.prs_intervals;
+   set work.filtered_prs4;
+   format next_exe_date DATE9.; /* You can also use YYMMDD10. if you prefer YYYY-MM-DD */
+run;
+
+
+
+
+/* =====================================================================
+   STEP 2: Evaluate intervals against the raw claims table (sasdata1.prs_rx)
+   To count visits and check for other meds between EXE_SOI_DTD and next_exe_date
+   ===================================================================== */
