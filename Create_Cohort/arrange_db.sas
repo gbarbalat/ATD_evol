@@ -445,8 +445,10 @@ quit;
 
 /* Same with MCO admissions */
 data sasdata1.mco;
-   set sasdata1.mco;
-   format EXE_SOI_DTD EXE_SOI_DTF date9.;
+   set sasdata1.mco; 
+	EXE_SOI_DTD = datepart(EXE_SOI_DTD);
+   EXE_SOI_DTF = datepart(EXE_SOI_DTF);
+   format EXE_SOI_DTD EXE_SOI_DTF  date9.;
 run;
 
 proc sql;
@@ -508,3 +510,147 @@ proc sql;
       f.HasC2S,
 	  f.SSR_Length;
 quit;
+
+
+
+/* Same with HAD */
+data sasdata1.had;
+   set sasdata1.had; 
+	EXE_SOI_DTD = datepart(EXE_SOI_DTD);
+   EXE_SOI_DTF = datepart(EXE_SOI_DTF);
+   format EXE_SOI_DTD EXE_SOI_DTF  date9.;
+run;
+
+proc sql;
+   create table work.prs_after_had as
+   select 
+      f.*,
+      
+      /* Safely calculate HAD length, forcing 0 if missing interval or no match */
+      case 
+         when f.next_exe_date is null then 0
+         else coalesce(sum(
+            case 
+               when r.had_start <= f.next_exe_date 
+                and r.had_end >= f.EXE_SOI_DTD 
+               then min(f.next_exe_date, r.had_end) - max(f.EXE_SOI_DTD, r.had_start) + 1
+               else 0 
+            end
+         ), 0)
+      end as HAD_Length
+
+   from work.prs_meds_visits_ald_orc_ssr_mco as f
+   left join (
+      select 
+         BEN_IDT_ANO as BEN_IDT_ANO,
+         EXE_SOI_DTD as had_start,   
+         EXE_SOI_DTF as had_end          
+      from sasdata1.had
+   ) as r
+      on f.BEN_IDT_ANO = r.BEN_IDT_ANO
+     and r.had_start <= f.next_exe_date
+     and r.had_end >= f.EXE_SOI_DTD
+     
+   group by 
+      f.BEN_IDT_ANO,
+      f.DT_FIRST_AD,
+      f.BEN_AMA_COD,
+      f.BEN_RES_DPT,
+      f.BEN_RES_COM,
+      f.EXE_SOI_DTD,
+      f.next_exe_date,
+      f.PHA_ATC_CLA,
+      f.PHA_ATC_LIB, 
+      f.PHA_ACT_QSN,
+      f.PSP_SPE_COD,
+      f.PSP_ACT_NAT,
+      f.RGO_ASU_NAT,
+      f.RGM_COD,
+      f.RGM_GRG_COD,
+      f.HasAnx,
+      f.HasOtherMeds,
+      f.HasATMPInv,
+      f.HasAAH,
+      f.SeenGP,
+      f.SeenPsych,
+      f.SeenOtherMed,
+      f.SeenNonMed,
+      f.HasALDPsy,
+      f.HasALDNonPsy,
+      f.HasC2S,
+	  f.SSR_Length,
+	  f.MCO_Length;
+quit;
+
+
+
+/* Same with RIP */
+data sasdata1.had;
+   set sasdata1.had; 
+	EXE_SOI_DTD = datepart(EXE_SOI_DTD);
+   EXE_SOI_DTF = datepart(EXE_SOI_DTF);
+   format EXE_SOI_DTD EXE_SOI_DTF  date9.;
+run;
+
+proc sql;
+   create table work.prs_after_had as
+   select 
+      f.*,
+      
+      /* Safely calculate HAD length, forcing 0 if missing interval or no match */
+      case 
+         when f.next_exe_date is null then 0
+         else coalesce(sum(
+            case 
+               when r.had_start <= f.next_exe_date 
+                and r.had_end >= f.EXE_SOI_DTD 
+               then min(f.next_exe_date, r.had_end) - max(f.EXE_SOI_DTD, r.had_start) + 1
+               else 0 
+            end
+         ), 0)
+      end as HAD_Length
+
+   from work.prs_meds_visits_ald_orc_ssr_mco as f
+   left join (
+      select 
+         BEN_IDT_ANO as BEN_IDT_ANO,
+         EXE_SOI_DTD as had_start,   
+         EXE_SOI_DTF as had_end          
+      from sasdata1.had
+   ) as r
+      on f.BEN_IDT_ANO = r.BEN_IDT_ANO
+     and r.had_start <= f.next_exe_date
+     and r.had_end >= f.EXE_SOI_DTD
+     
+   group by 
+      f.BEN_IDT_ANO,
+      f.DT_FIRST_AD,
+      f.BEN_AMA_COD,
+      f.BEN_RES_DPT,
+      f.BEN_RES_COM,
+      f.EXE_SOI_DTD,
+      f.next_exe_date,
+      f.PHA_ATC_CLA,
+      f.PHA_ATC_LIB, 
+      f.PHA_ACT_QSN,
+      f.PSP_SPE_COD,
+      f.PSP_ACT_NAT,
+      f.RGO_ASU_NAT,
+      f.RGM_COD,
+      f.RGM_GRG_COD,
+      f.HasAnx,
+      f.HasOtherMeds,
+      f.HasATMPInv,
+      f.HasAAH,
+      f.SeenGP,
+      f.SeenPsych,
+      f.SeenOtherMed,
+      f.SeenNonMed,
+      f.HasALDPsy,
+      f.HasALDNonPsy,
+      f.HasC2S,
+	  f.SSR_Length,
+	  f.MCO_Length;
+quit;
+
+
