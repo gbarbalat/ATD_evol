@@ -716,3 +716,62 @@ proc sql;
 quit;
 
 /* check CRTO databses and create column Prev_Psy_Dx_Rx (No, Latest Year) + Prev_Psy_Adm (No, Latest Year) */
+proc sql;
+   create table work.prs_after_had_rip_crto_DEP as
+   select 
+      f.*,
+      
+      /* Find latest prior psychiatric year, or default to 'No' */
+      coalesce(
+         (select put(max(c.year), 4.) 
+          from sasdata1.carto_dep as c 
+          where c.BEN_IDT_ANO = f.BEN_IDT_ANO 
+            and (c.DEP_DGF_PSY_BSE > 0 or c.DEP_OQN_PSY_BSE > 0)
+            and c.year < year(f.DT_FIRST_AD)),
+         'No'
+      ) as Prev_Psy_Adm
+	  
+   from work.prs_after_had_rip as f;
+quit;
+
+data sasdata1.carto_ind;
+   set sasdata1.carto_ind;
+   
+   /* Define arrays for all columns starting with PSY_ and TPS_ */
+   array psy_vars[*] PSY_:;
+   array tps_vars[*] TPS_:;
+   
+   has_psy_flag = 0;
+   
+   /* Check if any PSY_ column is > 0 */
+   do i = 1 to dim(psy_vars);
+      if psy_vars[i] > 0 then has_psy_flag = 1;
+   end;
+   
+   /* Check if any TPS_ column is > 0 */
+   do i = 1 to dim(tps_vars);
+      if tps_vars[i] > 0 then has_psy_flag = 1;
+   end;
+   
+   drop i;
+run;
+
+
+proc sql;
+   create table work.prs_after_had_rip_crto_DEP_IND as
+   select 
+      f.*,
+      
+	 /* Same with the other crto db */
+      coalesce(
+         (select put(max(c.year), 4.)  
+          from sasdata1.carto_ind as c 
+          where c.BEN_IDT_ANO = f.BEN_IDT_ANO 
+            and c.has_psy_flag = 1
+            and c.year < year(f.DT_FIRST_AD)),
+         'No'
+      ) as Prev_Psy_Dx_Rx
+	  
+   from work.prs_after_had_rip_crto_DEP as f;
+quit;
+
