@@ -18,6 +18,7 @@
           create table work.carto_extract_base as 
           select 
              FC2.BEN_IDT_ANO,
+             &yr. as year,
              'CARTO' as source_db length=5,
              main.*
 
@@ -30,7 +31,7 @@
 
       data work.carto_extract_tmp;
          set work.carto_extract_base;
-         keep BEN_IDT_ANO source_db 
+         keep BEN_IDT_ANO source_db year
            psy_:     /* Equivalent to starts_with("PSY_") */
            tps_:     /* Equivalent to starts_with("TPS_") */
            ASS_AAH_TOP BEN_ACS_TOP BEN_ALD_TOP CMU TOP_C2S_GRA TOP_C2S_PAR TOP_IND TOP_MT;
