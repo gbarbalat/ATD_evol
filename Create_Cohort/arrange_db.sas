@@ -69,14 +69,14 @@ quit;
 
 /* Step 4: Apply date formats cleanly in a DATA step */
 data work.prs_intervals;
-   set work.filtered_prs4;
+   set work.filtered_prs3;
    format next_exe_date DATE9.; /* You can also use YYMMDD10. if you prefer YYYY-MM-DD */
 run;
 
 
 /* check for other meds in prs_rx */
 proc sql;
-   create table work.prs_intervals_flagged as
+   create table work.prs_meds as
    select 
       f.BEN_IDT_ANO,
       f.DT_FIRST_AD,
@@ -135,7 +135,7 @@ quit;
 
 /* Now count visits between EXE_SOI_DTD and next_exe_date */
 proc sql;
-   create table work.prs_intervals_meds_visits as
+   create table work.prs_meds_visits as
    select 
       f.BEN_IDT_ANO,
       f.DT_FIRST_AD,
@@ -167,7 +167,7 @@ proc sql;
 	  case when coalesce(max(r.is_OtherMed), 0) = 1 then 'Yes' else 'No' end as SeenOtherMed,
 	  case when coalesce(max(r.is_SeenNonMed), 0) = 1 then 'Yes' else 'No' end as SeenNonMed
 
-   from work.prs_intervals_flagged as f
+   from work.prs_meds as f
    left join (
       select 
          BEN_IDT_ANO,
@@ -245,7 +245,7 @@ proc sql;
       /* Check for AAH */
       case when coalesce(max(r.is_ALDNot23), 0) = 1 then 'Yes' else 'No' end as HasALDNonPsy
 
-   from work.prs_intervals_meds_visits as f
+   from work.prs_meds_visits as f
    left join (
       select 
          BEN_IDT_ANO,
@@ -372,4 +372,139 @@ quit;
 
 
 /* Now check for SSR admission */
+data work.prs_meds_visits_ald_orc;
+   set work.prs_meds_visits_ald_orc;
+   /* Apply standard date formatting to all date columns */
+   format DT_FIRST_AD EXE_SOI_DTD date9.;
+run;
 
+data sasdata1.ssr;
+   set sasdata1.ssr;
+   format EXE_SOI_DTD EXE_SOI_DTF date9.;
+run;
+
+proc sql;
+   create table work.prs_meds_visits_ald_orc_ssr as
+   select 
+      f.*,
+      
+      /* Safely calculate SSR length, forcing 0 if missing interval or no match */
+      case 
+         when f.next_exe_date is null then 0
+         else coalesce(sum(
+            case 
+               when r.ssr_start <= f.next_exe_date 
+                and r.ssr_end >= f.EXE_SOI_DTD 
+               then min(f.next_exe_date, r.ssr_end) - max(f.EXE_SOI_DTD, r.ssr_start) + 1
+               else 0 
+            end
+         ), 0)
+      end as SSR_Length
+
+   from work.prs_meds_visits_ald_orc as f
+   left join (
+      select 
+         BEN_IDT_ANO as BEN_IDT_ANO,
+         EXE_SOI_DTD as ssr_start,   
+         EXE_SOI_DTF as ssr_end          
+      from sasdata1.ssr
+   ) as r
+      on f.BEN_IDT_ANO = r.BEN_IDT_ANO
+     and r.ssr_start <= f.next_exe_date
+     and r.ssr_end >= f.EXE_SOI_DTD
+     
+   group by 
+      f.BEN_IDT_ANO,
+      f.DT_FIRST_AD,
+      f.BEN_AMA_COD,
+      f.BEN_RES_DPT,
+      f.BEN_RES_COM,
+      f.EXE_SOI_DTD,
+      f.next_exe_date,
+      f.PHA_ATC_CLA,
+      f.PHA_ATC_LIB, 
+      f.PHA_ACT_QSN,
+      f.PSP_SPE_COD,
+      f.PSP_ACT_NAT,
+      f.RGO_ASU_NAT,
+      f.RGM_COD,
+      f.RGM_GRG_COD,
+      f.HasAnx,
+      f.HasOtherMeds,
+      f.HasATMPInv,
+      f.HasAAH,
+      f.SeenGP,
+      f.SeenPsych,
+      f.SeenOtherMed,
+      f.SeenNonMed,
+      f.HasALDPsy,
+      f.HasALDNonPsy,
+      f.HasC2S;
+quit;
+
+
+/* Same with MCO admissions */
+data sasdata1.mco;
+   set sasdata1.mco;
+   format EXE_SOI_DTD EXE_SOI_DTF date9.;
+run;
+
+proc sql;
+   create table work.prs_meds_visits_ald_orc_ssr_mco as
+   select 
+      f.*,
+      
+      /* Safely calculate MCO length, forcing 0 if missing interval or no match */
+      case 
+         when f.next_exe_date is null then 0
+         else coalesce(sum(
+            case 
+               when r.mco_start <= f.next_exe_date 
+                and r.mco_end >= f.EXE_SOI_DTD 
+               then min(f.next_exe_date, r.mco_end) - max(f.EXE_SOI_DTD, r.mco_start) + 1
+               else 0 
+            end
+         ), 0)
+      end as MCO_Length
+
+   from work.prs_meds_visits_ald_orc_ssr as f
+   left join (
+      select 
+         BEN_IDT_ANO as BEN_IDT_ANO,
+         EXE_SOI_DTD as mco_start,   
+         EXE_SOI_DTF as mco_end          
+      from sasdata1.mco
+   ) as r
+      on f.BEN_IDT_ANO = r.BEN_IDT_ANO
+     and r.mco_start <= f.next_exe_date
+     and r.mco_end >= f.EXE_SOI_DTD
+     
+   group by 
+      f.BEN_IDT_ANO,
+      f.DT_FIRST_AD,
+      f.BEN_AMA_COD,
+      f.BEN_RES_DPT,
+      f.BEN_RES_COM,
+      f.EXE_SOI_DTD,
+      f.next_exe_date,
+      f.PHA_ATC_CLA,
+      f.PHA_ATC_LIB, 
+      f.PHA_ACT_QSN,
+      f.PSP_SPE_COD,
+      f.PSP_ACT_NAT,
+      f.RGO_ASU_NAT,
+      f.RGM_COD,
+      f.RGM_GRG_COD,
+      f.HasAnx,
+      f.HasOtherMeds,
+      f.HasATMPInv,
+      f.HasAAH,
+      f.SeenGP,
+      f.SeenPsych,
+      f.SeenOtherMed,
+      f.SeenNonMed,
+      f.HasALDPsy,
+      f.HasALDNonPsy,
+      f.HasC2S,
+	  f.SSR_Length;
+quit;
