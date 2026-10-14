@@ -19,6 +19,7 @@
           select 
              FC2.BEN_IDT_ANO,
              'CARTO' as source_db length=5,
+             &yr. as year,
              main.DEP_DGF_PSY_BSE, /* hospit psy publiques */
              main.DEP_OQN_PSY_BSE,  /* hospit psy privees */
              main.TOT_DEP_BSE,
