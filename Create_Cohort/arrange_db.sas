@@ -613,8 +613,8 @@ proc sql;
                when r.rip_start <= f.next_exe_date 
                 and r.rip_end >= f.EXE_SOI_DTD 
                 and r.FOR_ACT like '0%' 
-               then min(f.next_exe_date, r.rip_end) - max(f.EXE_SOI_DTD, r.rip_start) + 1
-               else 0 
+               then min(f.next_exe_date, r.rip_end) - max(f.EXE_SOI_DTD, r.rip_start)  /*+ 1 */
+               else -1 
             end
          ), 0)
       end as RIP_0_Length,
@@ -627,8 +627,8 @@ proc sql;
                when r.rip_start <= f.next_exe_date 
                 and r.rip_end >= f.EXE_SOI_DTD 
                 and r.FOR_ACT like '2%' 
-               then min(f.next_exe_date, r.rip_end) - max(f.EXE_SOI_DTD, r.rip_start) + 1
-               else 0 
+               then min(f.next_exe_date, r.rip_end) - max(f.EXE_SOI_DTD, r.rip_start) /*+ 1 */
+               else -1 
             end
          ), 0)
       end as RIP_2_Length
