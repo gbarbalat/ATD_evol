@@ -130,248 +130,93 @@ quit;
 
 
 /* Now check for SSR admission */
-data work.prs_meds_visits_ald_orc;
-   set work.prs_meds_visits_ald_orc;
-   /* Apply standard date formatting to all date columns */
-   format DT_FIRST_AD EXE_SOI_DTD date9.;
-run;
-
-data sasdata1.ssr;
-   set sasdata1.ssr;
-   format EXE_SOI_DTD EXE_SOI_DTF date9.;
-run;
-
 proc sql;
-   create table work.prs_meds_visits_ald_orc_ssr as
+   create table work.prs_ald_orc_ssr_before as
    select 
       f.*,
       
-      /* Safely calculate SSR length, forcing 0 if missing interval or no match */
-      case 
-         when f.next_exe_date is null then 0
-         else coalesce(sum(
-            case 
-               when r.ssr_start <= f.next_exe_date 
-                and r.ssr_end >= f.EXE_SOI_DTD 
-               then min(f.next_exe_date, r.ssr_end) - max(f.EXE_SOI_DTD, r.ssr_start) + 1
-               else 0 
-            end
-         ), 0)
-      end as SSR_Length, 
-	  r.AGE_SSR
+      /* Check for previous admission */
+      case when coalesce(r.has_SSR, 0) = 1 then 'Yes' else 'No' end as Prev_SSR,
+      r.AGE_SSR_before
 
-   from work.prs_meds_visits_ald_orc as f
+   from work.prs_ald_orc_before as f
    left join (
       select 
-         BEN_IDT_ANO as BEN_IDT_ANO,
-         EXE_SOI_DTD as ssr_start,   
-         EXE_SOI_DTF as ssr_end,
-		 AGE_ANN as AGE_SSR
-      from sasdata1.ssr
+         p.BEN_IDT_ANO,
+         1 as has_SSR,
+         max(r.AGE_ANN) as AGE_SSR_before
+      from (select distinct BEN_IDT_ANO, DT_FIRST_AD from work.prs_ald_orc_before) as p
+      inner join sasdata1.ssr as r
+         on p.BEN_IDT_ANO = r.BEN_IDT_ANO
+        /* Ensure admission start is before index and end overlaps within 365 days prior */
+        and datepart(r.EXE_SOI_DTD) < p.DT_FIRST_AD
+        and datepart(r.EXE_SOI_DTF) > p.DT_FIRST_AD - 365
+      group by p.BEN_IDT_ANO
    ) as r
-      on f.BEN_IDT_ANO = r.BEN_IDT_ANO
-     and r.ssr_start <= f.next_exe_date
-     and r.ssr_end >= f.EXE_SOI_DTD
-     
-   group by 
-      f.BEN_IDT_ANO,
-      f.DT_FIRST_AD,
-      f.BEN_AMA_COD,
-      f.BEN_RES_DPT,
-      f.BEN_RES_COM,
-      f.EXE_SOI_DTD,
-      f.next_exe_date,
-      f.PHA_ATC_CLA,
-      f.PHA_ATC_LIB, 
-      f.PHA_ACT_QSN,
-      f.PSP_SPE_COD,
-      f.PSP_ACT_NAT,
-      f.RGO_ASU_NAT,
-      f.RGM_COD,
-      f.RGM_GRG_COD,
-      f.HasAnx,
-      f.HasOtherMeds,
-      f.HasATMPInv,
-      f.HasAAH,
-      f.SeenGP,
-      f.SeenPsych,
-      f.SeenOtherMed,
-      f.SeenNonMed,
-	  f.Pregnant,
-      f.HasALDPsy,
-      f.HasALDNonPsy,
-      f.HasC2S;
+      on f.BEN_IDT_ANO = r.BEN_IDT_ANO;
 quit;
 
 
 /* Same with MCO admissions */
-data sasdata1.mco;
-   set sasdata1.mco; 
-	EXE_SOI_DTD = datepart(EXE_SOI_DTD);
-   EXE_SOI_DTF = datepart(EXE_SOI_DTF);
-   format EXE_SOI_DTD EXE_SOI_DTF  date9.;
-run;
-
 proc sql;
-   create table work.prs_meds_visits_ald_orc_ssr_mco as
+   create table work.prs_ald_orc_ssr_mco_before as
    select 
       f.*,
       
-      /* Safely calculate MCO length, forcing 0 if missing interval or no match */
-      case 
-         when f.next_exe_date is null then 0
-         else coalesce(sum(
-            case 
-               when r.mco_start <= f.next_exe_date 
-                and r.mco_end >= f.EXE_SOI_DTD 
-               then min(f.next_exe_date, r.mco_end) - max(f.EXE_SOI_DTD, r.mco_start) + 1
-               else 0 
-            end
-         ), 0)
-      end as MCO_Length,
-	  r.AGE_MCO
+      /* Check for previous admission */
+      case when coalesce(r.has_MCO, 0) = 1 then 'Yes' else 'No' end as Prev_MCO,
+      r.AGE_MCO_before
 
-
-   from work.prs_meds_visits_ald_orc_ssr as f
+   from work.prs_ald_orc_ssr_before as f
    left join (
       select 
-         BEN_IDT_ANO as BEN_IDT_ANO,
-         EXE_SOI_DTD as mco_start,   
-         EXE_SOI_DTF as mco_end    
-		 AGE_ANN as AGE_MCO
-
-      from sasdata1.mco
+         p.BEN_IDT_ANO,
+         1 as has_MCO,
+         max(r.AGE_ANN) as AGE_MCO_before
+      from (select distinct BEN_IDT_ANO, DT_FIRST_AD from work.prs_ald_orc_ssr_before) as p
+      inner join sasdata1.mco as r
+         on p.BEN_IDT_ANO = r.BEN_IDT_ANO
+        /* Ensure admission start is before index and end overlaps within 365 days prior */
+        and datepart(r.EXE_SOI_DTD) < p.DT_FIRST_AD
+        and datepart(r.EXE_SOI_DTF) > p.DT_FIRST_AD - 365
+      group by p.BEN_IDT_ANO
    ) as r
-      on f.BEN_IDT_ANO = r.BEN_IDT_ANO
-     and r.mco_start <= f.next_exe_date
-     and r.mco_end >= f.EXE_SOI_DTD
-     
-   group by 
-      f.BEN_IDT_ANO,
-      f.DT_FIRST_AD,
-      f.BEN_AMA_COD,
-      f.BEN_RES_DPT,
-      f.BEN_RES_COM,
-      f.EXE_SOI_DTD,
-      f.next_exe_date,
-      f.PHA_ATC_CLA,
-      f.PHA_ATC_LIB, 
-      f.PHA_ACT_QSN,
-      f.PSP_SPE_COD,
-      f.PSP_ACT_NAT,
-      f.RGO_ASU_NAT,
-      f.RGM_COD,
-      f.RGM_GRG_COD,
-      f.HasAnx,
-      f.HasOtherMeds,
-      f.HasATMPInv,
-      f.HasAAH,
-      f.SeenGP,
-      f.SeenPsych,
-      f.SeenOtherMed,
-      f.SeenNonMed,
-	  f.Pregnant,
-      f.HasALDPsy,
-      f.HasALDNonPsy,
-      f.HasC2S,
-	  f.SSR_Length;
+      on f.BEN_IDT_ANO = r.BEN_IDT_ANO;
 quit;
 
 
-
 /* Same with HAD */
-data sasdata1.had;
-   set sasdata1.had; 
-	EXE_SOI_DTD = datepart(EXE_SOI_DTD);
-   EXE_SOI_DTF = datepart(EXE_SOI_DTF);
-   format EXE_SOI_DTD EXE_SOI_DTF  date9.;
-run;
-
 proc sql;
-   create table work.prs_after_had as
+   create table work.prs_ald_orc_ssr_mco_had_before as
    select 
       f.*,
       
-      /* Safely calculate HAD length, forcing 0 if missing interval or no match */
-      case 
-         when f.next_exe_date is null then 0
-         else coalesce(sum(
-            case 
-               when r.had_start <= f.next_exe_date 
-                and r.had_end >= f.EXE_SOI_DTD 
-               then min(f.next_exe_date, r.had_end) - max(f.EXE_SOI_DTD, r.had_start) + 1
-               else 0 
-            end
-         ), 0)
-      end as HAD_Length,
-	  r.AGE_HAD
+      /* Check for previous admission */
+      case when coalesce(r.has_HAD, 0) = 1 then 'Yes' else 'No' end as Prev_HAD,
+      r.AGE_HAD_before
 
-
-   from work.prs_meds_visits_ald_orc_ssr_mco as f
+   from work.prs_ald_orc_ssr_mco_before as f
    left join (
       select 
-         BEN_IDT_ANO as BEN_IDT_ANO,
-         EXE_SOI_DTD as had_start,   
-         EXE_SOI_DTF as had_end,
-		 AGE_ANN as AGE_HAD
-      from sasdata1.had
+         p.BEN_IDT_ANO,
+         1 as has_HAD,
+         max(r.AGE_ANN) as AGE_HAD_before
+      from (select distinct BEN_IDT_ANO, DT_FIRST_AD from work.prs_ald_orc_ssr_mco_before) as p
+      inner join sasdata1.had as r
+         on p.BEN_IDT_ANO = r.BEN_IDT_ANO
+        /* Ensure admission start is before index and end overlaps within 365 days prior */
+        and datepart(r.EXE_SOI_DTD) < p.DT_FIRST_AD
+        and datepart(r.EXE_SOI_DTF) > p.DT_FIRST_AD - 365
+      group by p.BEN_IDT_ANO
    ) as r
-      on f.BEN_IDT_ANO = r.BEN_IDT_ANO
-     and r.had_start <= f.next_exe_date
-     and r.had_end >= f.EXE_SOI_DTD
-     
-   group by 
-      f.BEN_IDT_ANO,
-      f.DT_FIRST_AD,
-      f.BEN_AMA_COD,
-      f.BEN_RES_DPT,
-      f.BEN_RES_COM,
-      f.EXE_SOI_DTD,
-      f.next_exe_date,
-      f.PHA_ATC_CLA,
-      f.PHA_ATC_LIB, 
-      f.PHA_ACT_QSN,
-      f.PSP_SPE_COD,
-      f.PSP_ACT_NAT,
-      f.RGO_ASU_NAT,
-      f.RGM_COD,
-      f.RGM_GRG_COD,
-      f.HasAnx,
-      f.HasOtherMeds,
-      f.HasATMPInv,
-      f.HasAAH,
-      f.SeenGP,
-      f.SeenPsych,
-      f.SeenOtherMed,
-      f.SeenNonMed,
-	  f.Pregnant,
-      f.HasALDPsy,
-      f.HasALDNonPsy,
-      f.HasC2S,
-	  f.SSR_Length,
-	  f.MCO_Length;
+      on f.BEN_IDT_ANO = r.BEN_IDT_ANO;
 quit;
 
 
 
 /* Same with RIP */
-data sasdata1.rip;
-   set sasdata1.rip; 
-   
-   /* Standardize existing date components */
-   EXE_SOI_DTD = datepart(EXE_SOI_DTD);
-   EXE_SOI_DTF = datepart(EXE_SOI_DTF);
-   
-   /* Calculate new milestone dates */
-   rip_start = EXE_SOI_DTD + ENT_DEL_DAT;
-   rip_end = rip_start + sum(PRE_JOU_NBJ, PRE_DEM_JOU_NBJ/2);
-   
-   /* Apply date9. format to all date columns */
-   format EXE_SOI_DTD EXE_SOI_DTF rip_start rip_end date9.;
-run;
-
 proc sql;
-   create table work.prs_after_had_rip as
+   create table work.prs_ald_orc_ssr_mco_had_rip as
    select 
       f.*,
       
@@ -419,95 +264,5 @@ proc sql;
      and r.rip_start <= f.next_exe_date
      and r.rip_end >= f.EXE_SOI_DTD
      
-   group by 
-      f.BEN_IDT_ANO,
-      f.DT_FIRST_AD,
-      f.BEN_AMA_COD,
-      f.BEN_RES_DPT,
-      f.BEN_RES_COM,
-      f.EXE_SOI_DTD,
-      f.next_exe_date,
-      f.PHA_ATC_CLA,
-      f.PHA_ATC_LIB, 
-      f.PHA_ACT_QSN,
-      f.PSP_SPE_COD,
-      f.PSP_ACT_NAT,
-      f.RGO_ASU_NAT,
-      f.RGM_COD,
-      f.RGM_GRG_COD,
-      f.HasAnx,
-      f.HasOtherMeds,
-      f.HasATMPInv,
-      f.HasAAH,
-      f.SeenGP,
-      f.SeenPsych,
-      f.SeenOtherMed,
-      f.SeenNonMed,
-	  f.Pregnant,
-      f.HasALDPsy,
-      f.HasALDNonPsy,
-      f.HasC2S,
-	  f.SSR_Length,
-	  f.MCO_Length,
-	  f.HAD_Length;
 quit;
 
-/* check CRTO databses and create column Prev_Psy_Dx_Rx (No, Latest Year) + Prev_Psy_Adm (No, Latest Year) */
-proc sql;
-   create table work.prs_after_had_rip_crto_DEP as
-   select 
-      f.*,
-      
-      /* Find latest prior psychiatric year, or default to 'No' */
-      coalesce(
-         (select put(max(c.year), 4.) 
-          from sasdata1.carto_dep as c 
-          where c.BEN_IDT_ANO = f.BEN_IDT_ANO 
-            and (c.DEP_DGF_PSY_BSE > 0 or c.DEP_OQN_PSY_BSE > 0)
-            and c.year < year(f.DT_FIRST_AD)),
-         'No'
-      ) as Prev_Psy_Adm
-	  
-   from work.prs_after_had_rip as f;
-quit;
-
-data sasdata1.carto_ind;
-   set sasdata1.carto_ind;
-   
-   /* Define arrays for all columns starting with PSY_ and TPS_ */
-   array psy_vars[*] PSY_:;
-   array tps_vars[*] TPS_:;
-   
-   has_psy_flag = 0;
-   
-   /* Check if any PSY_ column is > 0 */
-   do i = 1 to dim(psy_vars);
-      if psy_vars[i] > 0 then has_psy_flag = 1;
-   end;
-   
-   /* Check if any TPS_ column is > 0 */
-   do i = 1 to dim(tps_vars);
-      if tps_vars[i] > 0 then has_psy_flag = 1;
-   end;
-   
-   drop i;
-run;
-
-
-proc sql;
-   create table work.prs_after_had_rip_crto_DEP_IND as
-   select 
-      f.*,
-      
-	 /* Same with the other crto db */
-      coalesce(
-         (select put(max(c.year), 4.)  
-          from sasdata1.carto_ind as c 
-          where c.BEN_IDT_ANO = f.BEN_IDT_ANO 
-            and c.has_psy_flag = 1
-            and c.year < year(f.DT_FIRST_AD)),
-         'No'
-      ) as Prev_Psy_Dx_Rx
-	  
-   from work.prs_after_had_rip_crto_DEP as f;
-quit;
