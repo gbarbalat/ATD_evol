@@ -22,7 +22,9 @@ proc sql;
 	  r.PSP_ACT_NAT,
 	  r.RGO_ASU_NAT,
 	  r.RGM_COD,
-	  r.RGM_GRG_COD
+	  r.RGM_GRG_COD,
+	  r.BEN_DCD_DTE, 
+	  r.MAX_TRT_DTD
 
    from work.top10_ids as t
    inner join sasdata1.prs_rx as r
@@ -59,13 +61,25 @@ proc sql;
    create table work.filtered_prs3 as
    select 
       t1.*,
-      /* Finds the earliest dispensing date that occurs strictly after the current one */
-      (select min(t2.EXE_SOI_DTD) 
-       from work.filtered_prs2 as t2 
-       where t2.BEN_IDT_ANO = t1.BEN_IDT_ANO 
-         and t2.EXE_SOI_DTD > t1.EXE_SOI_DTD) as next_exe_date
+      /* Finds the next dispensing date, or falls back to the earliest valid date */
+      coalesce(
+         (select min(t2.EXE_SOI_DTD) 
+            from work.filtered_prs2 as t2 
+            where t2.BEN_IDT_ANO = t1.BEN_IDT_ANO 
+              and t2.EXE_SOI_DTD > t1.EXE_SOI_DTD),
+         min(
+            intnx('year', t1.DT_FIRST_AD, 1, 'same'), 
+            t1.MAX_TRT_DTD, 
+            /* Treat 1600 sentinel/living death dates as missing so min() ignores them */
+            case 
+               when t1.BEN_DCD_DTE = . or year(datepart(t1.BEN_DCD_DTE)) < 1960 then . 
+               else datepart(t1.BEN_DCD_DTE) 
+            end
+         )
+      ) as next_exe_date
    from work.filtered_prs2 as t1;
 quit;
+
 
 /* Step 4: Apply date formats cleanly in a DATA step */
 data work.prs_intervals;
@@ -165,7 +179,10 @@ proc sql;
       case when coalesce(max(r.is_GP), 0) = 1 then 'Yes' else 'No' end as SeenGP,
       case when coalesce(max(r.is_Psych), 0) = 1 then 'Yes' else 'No' end as SeenPsych,
 	  case when coalesce(max(r.is_OtherMed), 0) = 1 then 'Yes' else 'No' end as SeenOtherMed,
-	  case when coalesce(max(r.is_SeenNonMed), 0) = 1 then 'Yes' else 'No' end as SeenNonMed
+	  case when coalesce(max(r.is_SeenNonMed), 0) = 1 then 'Yes' else 'No' end as SeenNonMed,
+
+	   /* Check for Pregnancy */
+      case when coalesce(max(r.is_Pregnant), 0) = 1 then 'Yes' else 'No' end as Pregnant,
 
    from work.prs_meds as f
    left join (
@@ -179,9 +196,9 @@ proc sql;
 
          case when RGO_ASU_NAT in (40,80) then 1 else 0 end as is_ATMPInv,
          case when (RGM_COD in (180,181, 188, 189) and RGM_GRG_COD=1) then 1 else 0 end as is_AAH,
-
-		 case when PRS_GRS_DTD in (40,80) then 1 else 0 end as is_ATMPInv
-      from sasdata1.prs_au
+		 
+		 case when PRS_GRS_DTD is not null then 1 else 0 end as is_Pregnant
+		 from sasdata1.prs_au
    ) as r
       on f.BEN_IDT_ANO = r.BEN_IDT_ANO
      and r.exe_date > f.EXE_SOI_DTD
@@ -238,6 +255,7 @@ proc sql;
 	  f.SeenPsych,
 	  f.SeenOtherMed,
 	  f.SeenNonMed,
+	  f.Pregnant,
       
       /* Check for ALD Psy */
       case when coalesce(max(r.is_ALD23), 0) = 1 then 'Yes' else 'No' end as HasALDPsy,
@@ -284,7 +302,8 @@ proc sql;
 	  f.SeenGP,
 	  f.SeenPsych,
 	  f.SeenOtherMed,
-	  f.SeenNonMed;
+	  f.SeenNonMed,
+	  f.Pregnant;
 quit;
 
 
@@ -322,6 +341,7 @@ proc sql;
       f.SeenPsych,
       f.SeenOtherMed,
       f.SeenNonMed,
+	  f.Pregnant,
       f.HasALDPsy,
       f.HasALDNonPsy,
       
@@ -366,6 +386,7 @@ proc sql;
       f.SeenPsych,
       f.SeenOtherMed,
       f.SeenNonMed,
+	  f.Pregnant,
       f.HasALDPsy,
       f.HasALDNonPsy;
 quit;
@@ -399,14 +420,16 @@ proc sql;
                else 0 
             end
          ), 0)
-      end as SSR_Length
+      end as SSR_Length, 
+	  r.AGE_SSR
 
    from work.prs_meds_visits_ald_orc as f
    left join (
       select 
          BEN_IDT_ANO as BEN_IDT_ANO,
          EXE_SOI_DTD as ssr_start,   
-         EXE_SOI_DTF as ssr_end          
+         EXE_SOI_DTF as ssr_end,
+		 AGE_ANN as AGE_SSR
       from sasdata1.ssr
    ) as r
       on f.BEN_IDT_ANO = r.BEN_IDT_ANO
@@ -437,6 +460,7 @@ proc sql;
       f.SeenPsych,
       f.SeenOtherMed,
       f.SeenNonMed,
+	  f.Pregnant,
       f.HasALDPsy,
       f.HasALDNonPsy,
       f.HasC2S;
@@ -467,14 +491,18 @@ proc sql;
                else 0 
             end
          ), 0)
-      end as MCO_Length
+      end as MCO_Length,
+	  r.AGE_MCO
+
 
    from work.prs_meds_visits_ald_orc_ssr as f
    left join (
       select 
          BEN_IDT_ANO as BEN_IDT_ANO,
          EXE_SOI_DTD as mco_start,   
-         EXE_SOI_DTF as mco_end          
+         EXE_SOI_DTF as mco_end    
+		 AGE_ANN as AGE_MCO
+
       from sasdata1.mco
    ) as r
       on f.BEN_IDT_ANO = r.BEN_IDT_ANO
@@ -505,6 +533,7 @@ proc sql;
       f.SeenPsych,
       f.SeenOtherMed,
       f.SeenNonMed,
+	  f.Pregnant,
       f.HasALDPsy,
       f.HasALDNonPsy,
       f.HasC2S,
@@ -537,14 +566,17 @@ proc sql;
                else 0 
             end
          ), 0)
-      end as HAD_Length
+      end as HAD_Length,
+	  r.AGE_HAD
+
 
    from work.prs_meds_visits_ald_orc_ssr_mco as f
    left join (
       select 
          BEN_IDT_ANO as BEN_IDT_ANO,
          EXE_SOI_DTD as had_start,   
-         EXE_SOI_DTF as had_end          
+         EXE_SOI_DTF as had_end,
+		 AGE_ANN as AGE_HAD
       from sasdata1.had
    ) as r
       on f.BEN_IDT_ANO = r.BEN_IDT_ANO
@@ -575,6 +607,7 @@ proc sql;
       f.SeenPsych,
       f.SeenOtherMed,
       f.SeenNonMed,
+	  f.Pregnant,
       f.HasALDPsy,
       f.HasALDNonPsy,
       f.HasC2S,
@@ -631,7 +664,9 @@ proc sql;
                else -1 
             end
          ), 0)
-      end as RIP_2_Length
+      end as RIP_2_Length,
+ 	  r.AGE_RIP
+
 
    from work.prs_after_had as f
    left join (
@@ -639,7 +674,8 @@ proc sql;
          BEN_IDT_ANO as BEN_IDT_ANO,
          rip_start,   
          rip_end, 
-		 FOR_ACT
+		 FOR_ACT, 
+		 AGE_ANN as AGE_RIP
       from sasdata1.rip
    ) as r
       on f.BEN_IDT_ANO = r.BEN_IDT_ANO
@@ -670,6 +706,7 @@ proc sql;
       f.SeenPsych,
       f.SeenOtherMed,
       f.SeenNonMed,
+	  f.Pregnant,
       f.HasALDPsy,
       f.HasALDNonPsy,
       f.HasC2S,
