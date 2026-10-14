@@ -59,7 +59,7 @@
           select case when count(*) > 0 then "for_dx.TYP_GEN_RSA" else "'0' as TYP_GEN_RSA length=1" end into :f_typ_gen_rsa_sel trimmed from dictionary.columns where libname='ORAVUE' and memname="T_RIP&yr.RSA" and upcase(name)='TYP_GEN_RSA';
           select case when count(*) > 0 then "main.SEQ_IND" else "'' as SEQ_IND length=10" end into :f_seq_ind_sel trimmed from dictionary.columns where libname='ORAVUE' and memname="T_RIP&yr.C" and upcase(name)='SEQ_IND';
           
-          select case when count(*) > 0 then "for_dx.DEL_DAT" else ". as DEL_DAT" end into :f_del_dat trimmed from dictionary.columns where libname='ORAVUE' and memname="T_RIP&yr.RSA" and upcase(name)='DEL_DAT';
+          select case when count(*) > 0 then "for_dx.ENT_DEL_DAT" else ". as DEL_DAT" end into :f_del_dat trimmed from dictionary.columns where libname='ORAVUE' and memname="T_RIP&yr.RSA" and upcase(name)='ENT_DEL_DAT';
           select case when count(*) > 0 then "for_dx.PRE_JOU_NBJ" else ". as PRE_JOU_NBJ" end into :f_pre_jou_nbj trimmed from dictionary.columns where libname='ORAVUE' and memname="T_RIP&yr.RSA" and upcase(name)='PRE_JOU_NBJ';
           select case when count(*) > 0 then "for_dx.PRE_DEM_JOU_NBJ" else ". as PRE_DEM_JOU_NBJ" end into :f_pre_dem_jou_nbj trimmed from dictionary.columns where libname='ORAVUE' and memname="T_RIP&yr.RSA" and upcase(name)='PRE_DEM_JOU_NBJ';
 
