@@ -216,41 +216,18 @@ quit;
 
 /* Same with RIP */
 proc sql;
-   create table work.prs_ald_orc_ssr_mco_had_rip as
+   create table work.prs_ald_orc_hosp_before as
    select 
       f.*,
       
- /* RIP Length for FOR_ACT starting with '0' */
-      case 
-         when f.next_exe_date is null then 0
-         else coalesce(sum(
-            case 
-               when r.rip_start <= f.next_exe_date 
-                and r.rip_end >= f.EXE_SOI_DTD 
-                and r.FOR_ACT like '0%' 
-               then min(f.next_exe_date, r.rip_end) - max(f.EXE_SOI_DTD, r.rip_start)  /*+ 1 */
-               else -1 
-            end
-         ), 0)
-      end as RIP_0_Length,
+ /* FOR_ACT starting with '0' */ 
+case when coalesce(r.has_RIP, 0) = 1 then 'Yes' else 'No' end as Prev_RIP_0 but only if FOR_ACT starts with character 0
 
-      /* RIP Length for FOR_ACT starting with '1' */
-      case 
-         when f.next_exe_date is null then 0
-         else coalesce(sum(
-            case 
-               when r.rip_start <= f.next_exe_date 
-                and r.rip_end >= f.EXE_SOI_DTD 
-                and r.FOR_ACT like '2%' 
-               then min(f.next_exe_date, r.rip_end) - max(f.EXE_SOI_DTD, r.rip_start) /*+ 1 */
-               else -1 
-            end
-         ), 0)
-      end as RIP_2_Length,
- 	  r.AGE_RIP
+      /* FOR_ACT starting with '1' */
+case when coalesce(r.has_RIP, 0) = 1 then 'Yes' else 'No' end as Prev_RIP_2 but only if FOR_ACT starts with character 2
 
 
-   from work.prs_after_had as f
+   from work.prs_ald_orc_ssr_mco_had as f
    left join (
       select 
          BEN_IDT_ANO as BEN_IDT_ANO,
@@ -261,8 +238,7 @@ proc sql;
       from sasdata1.rip
    ) as r
       on f.BEN_IDT_ANO = r.BEN_IDT_ANO
-     and r.rip_start <= f.next_exe_date
-     and r.rip_end >= f.EXE_SOI_DTD
+     and r.rip_start < DT_FIRST_AD
+     and r.rip_end > DT_FIRST_AD - 365
      
 quit;
-
