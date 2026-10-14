@@ -220,25 +220,27 @@ proc sql;
    select 
       f.*,
       
- /* FOR_ACT starting with '0' */ 
-case when coalesce(r.has_RIP, 0) = 1 then 'Yes' else 'No' end as Prev_RIP_0 but only if FOR_ACT starts with character 0
+      /* FOR_ACT starting with '0' */
+      case when coalesce(r.has_RIP_0, 0) = 1 then 'Yes' else 'No' end as Prev_RIP_0,
 
-      /* FOR_ACT starting with '1' */
-case when coalesce(r.has_RIP, 0) = 1 then 'Yes' else 'No' end as Prev_RIP_2 but only if FOR_ACT starts with character 2
+      /* FOR_ACT starting with '2' */
+      case when coalesce(r.has_RIP_2, 0) = 1 then 'Yes' else 'No' end as Prev_RIP_2,
 
+      r.AGE_RIP
 
-   from work.prs_ald_orc_ssr_mco_had as f
+   from work.prs_ald_orc_ssr_mco_had_before as f
    left join (
       select 
-         BEN_IDT_ANO as BEN_IDT_ANO,
-         rip_start,   
-         rip_end, 
-		 FOR_ACT, 
-		 AGE_ANN as AGE_RIP
-      from sasdata1.rip
+         p.BEN_IDT_ANO,
+         max(case when sub.FOR_ACT like '0%' then 1 else 0 end) as has_RIP_0,
+         max(case when sub.FOR_ACT like '2%' then 1 else 0 end) as has_RIP_2,
+         max(sub.AGE_ANN) as AGE_RIP
+      from (select distinct BEN_IDT_ANO, DT_FIRST_AD from work.prs_ald_orc_ssr_mco_had_before) as p
+      inner join sasdata1.rip as sub
+         on p.BEN_IDT_ANO = sub.BEN_IDT_ANO
+        and sub.rip_start < p.DT_FIRST_AD
+        and sub.rip_end > p.DT_FIRST_AD - 365
+      group by p.BEN_IDT_ANO
    ) as r
-      on f.BEN_IDT_ANO = r.BEN_IDT_ANO
-     and r.rip_start < DT_FIRST_AD
-     and r.rip_end > DT_FIRST_AD - 365
-     
+      on f.BEN_IDT_ANO = r.BEN_IDT_ANO;
 quit;
