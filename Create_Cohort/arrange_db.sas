@@ -715,4 +715,4 @@ proc sql;
 	  f.HAD_Length;
 quit;
 
-
+/* check CRTO databses and create column Prev_Psy_Dx_Rx (No, Latest Year) + Prev_Psy_Adm (No, Latest Year) */
