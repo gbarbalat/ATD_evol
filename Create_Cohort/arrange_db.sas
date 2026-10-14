@@ -585,42 +585,66 @@ quit;
 
 
 /* Same with RIP */
-data sasdata1.had;
-   set sasdata1.had; 
-	EXE_SOI_DTD = datepart(EXE_SOI_DTD);
+data sasdata1.rip;
+   set sasdata1.rip; 
+   
+   /* Standardize existing date components */
+   EXE_SOI_DTD = datepart(EXE_SOI_DTD);
    EXE_SOI_DTF = datepart(EXE_SOI_DTF);
-   format EXE_SOI_DTD EXE_SOI_DTF  date9.;
+   
+   /* Calculate new milestone dates */
+   rip_start = EXE_SOI_DTD + ENT_DEL_DAT;
+   rip_end = rip_start + sum(PRE_JOU_NBJ, PRE_DEM_JOU_NBJ/2);
+   
+   /* Apply date9. format to all date columns */
+   format EXE_SOI_DTD EXE_SOI_DTF rip_start rip_end date9.;
 run;
 
 proc sql;
-   create table work.prs_after_had as
+   create table work.prs_after_had_rip as
    select 
       f.*,
       
-      /* Safely calculate HAD length, forcing 0 if missing interval or no match */
+ /* RIP Length for FOR_ACT starting with '0' */
       case 
          when f.next_exe_date is null then 0
          else coalesce(sum(
             case 
-               when r.had_start <= f.next_exe_date 
-                and r.had_end >= f.EXE_SOI_DTD 
-               then min(f.next_exe_date, r.had_end) - max(f.EXE_SOI_DTD, r.had_start) + 1
+               when r.rip_start <= f.next_exe_date 
+                and r.rip_end >= f.EXE_SOI_DTD 
+                and r.FOR_ACT like '0%' 
+               then min(f.next_exe_date, r.rip_end) - max(f.EXE_SOI_DTD, r.rip_start) + 1
                else 0 
             end
          ), 0)
-      end as HAD_Length
+      end as RIP_0_Length,
 
-   from work.prs_meds_visits_ald_orc_ssr_mco as f
+      /* RIP Length for FOR_ACT starting with '1' */
+      case 
+         when f.next_exe_date is null then 0
+         else coalesce(sum(
+            case 
+               when r.rip_start <= f.next_exe_date 
+                and r.rip_end >= f.EXE_SOI_DTD 
+                and r.FOR_ACT like '2%' 
+               then min(f.next_exe_date, r.rip_end) - max(f.EXE_SOI_DTD, r.rip_start) + 1
+               else 0 
+            end
+         ), 0)
+      end as RIP_2_Length
+
+   from work.prs_after_had as f
    left join (
       select 
          BEN_IDT_ANO as BEN_IDT_ANO,
-         EXE_SOI_DTD as had_start,   
-         EXE_SOI_DTF as had_end          
-      from sasdata1.had
+         rip_start,   
+         rip_end, 
+		 FOR_ACT
+      from sasdata1.rip
    ) as r
       on f.BEN_IDT_ANO = r.BEN_IDT_ANO
-     and r.had_start <= f.next_exe_date
-     and r.had_end >= f.EXE_SOI_DTD
+     and r.rip_start <= f.next_exe_date
+     and r.rip_end >= f.EXE_SOI_DTD
      
    group by 
       f.BEN_IDT_ANO,
@@ -650,7 +674,8 @@ proc sql;
       f.HasALDNonPsy,
       f.HasC2S,
 	  f.SSR_Length,
-	  f.MCO_Length;
+	  f.MCO_Length,
+	  f.HAD_Length;
 quit;
 
 
