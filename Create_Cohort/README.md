@@ -1,27 +1,21 @@
-# Section 1 - Gather db
+# Section 1 - Gather db on sas
 
 ## Collect based on first steps of flowchart  
-On SAS, run gather_raw_dbs_etc... to create FC1_etc...  
-Steps 1 to 6 = create cohort id with >= 1 N06A claim (ATD) between 2015-01-01 and 2017-12-31; gather Meds; gather RIP; MCO; SSR; HAD  (Step 0 = number of women 18-39 with claims during 2015-2017)  
+On SAS, run gather_raw_dbs_etc... 
+
 
 ## Pre-process dbs based on flowchart: obvious filter (excl criteria from flowchart) and obvious select on Out, Exp, Cv 
 on SAS, run preproc_flowchart.sas  
- - Remove individuals who had been on ATD before their ATD initiation 2015-2017
- - Remove individuals with a psych admission before their ATD initiation 2015-2017
- - Remove individuals prescribed with AEpi, Apsychotics and stimulants before their ATD initiation 2015-2017
-This creates FC4 database
+
+## Then run preproc_gather scripts, then preproc_merged scripts
+
 
 # Section 2 - Process data  
-
-## Preproc_merged  
-On SAS, append meds (FC1_2) and admission data (FC1_3 to 6) for FC4 individuals to create merged_ db (also involves a bit of cleaning)  
 
 ## Then On R, run ATD_evol_Process.R    
 
 ## merged_add_filter  
 **merge db of interest, add other vars; further filtering**  
-From FC_4,  
-left join with EDI and denom_ps_commune (from rf_commun)  
 
 ## merged_checks_recode  
 **explore #cols, col names, unique values, tables, NA/distributions; NA in ID and col; obvious recode (1,2,3 to More than etc ... inc. na_if, make categ)**  
