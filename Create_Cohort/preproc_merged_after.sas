@@ -1,3 +1,20 @@
+/* SOLVING THE DATE ISSUE */
+data sasdata1.rip;
+   set sasdata1.rip; 
+   
+   /* Standardize existing date components */
+   EXE_SOI_DTD = datepart(EXE_SOI_DTD);
+   EXE_SOI_DTF = datepart(EXE_SOI_DTF);
+   
+   /* Calculate new milestone dates */
+   rip_start = EXE_SOI_DTD + ENT_DEL_DAT;
+   rip_end = rip_start + sum(PRE_JOU_NBJ, PRE_DEM_JOU_NBJ/2);
+   
+   /* Apply date9. format to all date columns */
+   format EXE_SOI_DTD EXE_SOI_DTF rip_start rip_end date9.;
+run;
+
+
 /* Step 1: Extract the first 10 distinct beneficiaries and their DT_FIRST_AD */
 proc sql outobs=10;
    create table work.top10_ids as
@@ -182,7 +199,7 @@ proc sql;
 	  case when coalesce(max(r.is_SeenNonMed), 0) = 1 then 'Yes' else 'No' end as SeenNonMed,
 
 	   /* Check for Pregnancy */
-      case when coalesce(max(r.is_Pregnant), 0) = 1 then 'Yes' else 'No' end as Pregnant,
+      case when coalesce(max(r.is_Pregnant), 0) = 1 then 'Yes' else 'No' end as Pregnant
 
    from work.prs_meds as f
    left join (
@@ -275,8 +292,7 @@ proc sql;
       from sasdata1.ald
    ) as r
       on f.BEN_IDT_ANO = r.BEN_IDT_ANO
-     and r.exe_date <= f.EXE_SOI_DTD
-	 and r.end_date >= f.EXE_SOI_DTD
+	 and r.end_date > f.EXE_SOI_DTD
      and (f.next_exe_date is null or r.exe_date < f.next_exe_date)
      
    group by 
@@ -313,7 +329,7 @@ data sasdata1.orc;
    set sasdata1.orc;
    exe_date = datepart(MLL_CTA_DSD);
    end_date = datepart(MLL_CTA_DSF);
-   format exe_date end_date ;
+   format exe_date end_date DATE9.;
 run;
 proc sql;
    create table work.prs_meds_visits_ald_orc as
@@ -358,9 +374,8 @@ proc sql;
       from sasdata1.orc
    ) as r
       on f.BEN_IDT_ANO = r.BEN_IDT_ANO
-     and r.exe_date <= datepart(f.EXE_SOI_DTD)
-     and r.end_date >= datepart(f.EXE_SOI_DTD)
-     and (f.next_exe_date is null or r.exe_date < datepart(f.next_exe_date))
+     and r.end_date > f.EXE_SOI_DTD
+     and (f.next_exe_date is null or r.exe_date < f.next_exe_date)
      
    group by 
       f.BEN_IDT_ANO,
@@ -393,17 +408,6 @@ quit;
 
 
 /* Now check for SSR admission */
-data work.prs_meds_visits_ald_orc;
-   set work.prs_meds_visits_ald_orc;
-   /* Apply standard date formatting to all date columns */
-   format DT_FIRST_AD EXE_SOI_DTD date9.;
-run;
-
-data sasdata1.ssr;
-   set sasdata1.ssr;
-   format EXE_SOI_DTD EXE_SOI_DTF date9.;
-run;
-
 proc sql;
    create table work.prs_meds_visits_ald_orc_ssr as
    select 
@@ -433,8 +437,8 @@ proc sql;
       from sasdata1.ssr
    ) as r
       on f.BEN_IDT_ANO = r.BEN_IDT_ANO
-     and r.ssr_start <= f.next_exe_date
-     and r.ssr_end >= f.EXE_SOI_DTD
+     and r.ssr_start < f.next_exe_date
+     and r.ssr_end > f.EXE_SOI_DTD
      
    group by 
       f.BEN_IDT_ANO,
@@ -468,13 +472,6 @@ quit;
 
 
 /* Same with MCO admissions */
-data sasdata1.mco;
-   set sasdata1.mco; 
-	EXE_SOI_DTD = datepart(EXE_SOI_DTD);
-   EXE_SOI_DTF = datepart(EXE_SOI_DTF);
-   format EXE_SOI_DTD EXE_SOI_DTF  date9.;
-run;
-
 proc sql;
    create table work.prs_meds_visits_ald_orc_ssr_mco as
    select 
@@ -500,14 +497,14 @@ proc sql;
       select 
          BEN_IDT_ANO as BEN_IDT_ANO,
          EXE_SOI_DTD as mco_start,   
-         EXE_SOI_DTF as mco_end    
+         EXE_SOI_DTF as mco_end,    
 		 AGE_ANN as AGE_MCO
 
       from sasdata1.mco
    ) as r
       on f.BEN_IDT_ANO = r.BEN_IDT_ANO
-     and r.mco_start <= f.next_exe_date
-     and r.mco_end >= f.EXE_SOI_DTD
+     and r.mco_start < f.next_exe_date
+     and r.mco_end > f.EXE_SOI_DTD
      
    group by 
       f.BEN_IDT_ANO,
@@ -543,13 +540,6 @@ quit;
 
 
 /* Same with HAD */
-data sasdata1.had;
-   set sasdata1.had; 
-	EXE_SOI_DTD = datepart(EXE_SOI_DTD);
-   EXE_SOI_DTF = datepart(EXE_SOI_DTF);
-   format EXE_SOI_DTD EXE_SOI_DTF  date9.;
-run;
-
 proc sql;
    create table work.prs_after_had as
    select 
@@ -580,8 +570,8 @@ proc sql;
       from sasdata1.had
    ) as r
       on f.BEN_IDT_ANO = r.BEN_IDT_ANO
-     and r.had_start <= f.next_exe_date
-     and r.had_end >= f.EXE_SOI_DTD
+     and r.had_start < f.next_exe_date
+     and r.had_end > f.EXE_SOI_DTD
      
    group by 
       f.BEN_IDT_ANO,
@@ -618,21 +608,6 @@ quit;
 
 
 /* Same with RIP */
-data sasdata1.rip;
-   set sasdata1.rip; 
-   
-   /* Standardize existing date components */
-   EXE_SOI_DTD = datepart(EXE_SOI_DTD);
-   EXE_SOI_DTF = datepart(EXE_SOI_DTF);
-   
-   /* Calculate new milestone dates */
-   rip_start = EXE_SOI_DTD + ENT_DEL_DAT;
-   rip_end = rip_start + sum(PRE_JOU_NBJ, PRE_DEM_JOU_NBJ/2);
-   
-   /* Apply date9. format to all date columns */
-   format EXE_SOI_DTD EXE_SOI_DTF rip_start rip_end date9.;
-run;
-
 proc sql;
    create table work.prs_after_had_rip as
    select 
@@ -643,8 +618,8 @@ proc sql;
          when f.next_exe_date is null then 0
          else coalesce(sum(
             case 
-               when r.rip_start <= f.next_exe_date 
-                and r.rip_end >= f.EXE_SOI_DTD 
+               when r.rip_start < f.next_exe_date 
+                and r.rip_end > f.EXE_SOI_DTD 
                 and r.FOR_ACT like '0%' 
                then min(f.next_exe_date, r.rip_end) - max(f.EXE_SOI_DTD, r.rip_start)  /*+ 1 */
                else -1 
@@ -657,8 +632,8 @@ proc sql;
          when f.next_exe_date is null then 0
          else coalesce(sum(
             case 
-               when r.rip_start <= f.next_exe_date 
-                and r.rip_end >= f.EXE_SOI_DTD 
+               when r.rip_start < f.next_exe_date 
+                and r.rip_end > f.EXE_SOI_DTD 
                 and r.FOR_ACT like '2%' 
                then min(f.next_exe_date, r.rip_end) - max(f.EXE_SOI_DTD, r.rip_start) /*+ 1 */
                else -1 
@@ -679,8 +654,8 @@ proc sql;
       from sasdata1.rip
    ) as r
       on f.BEN_IDT_ANO = r.BEN_IDT_ANO
-     and r.rip_start <= f.next_exe_date
-     and r.rip_end >= f.EXE_SOI_DTD
+     and r.rip_start < f.next_exe_date
+     and r.rip_end > f.EXE_SOI_DTD
      
    group by 
       f.BEN_IDT_ANO,
@@ -715,63 +690,6 @@ proc sql;
 	  f.HAD_Length;
 quit;
 
-/* check CRTO databses and create column Prev_Psy_Dx_Rx (No, Latest Year) + Prev_Psy_Adm (No, Latest Year) */
-proc sql;
-   create table work.prs_after_had_rip_crto_DEP as
-   select 
-      f.*,
-      
-      /* Find latest prior psychiatric year, or default to 'No' */
-      coalesce(
-         (select put(max(c.year), 4.) 
-          from sasdata1.carto_dep as c 
-          where c.BEN_IDT_ANO = f.BEN_IDT_ANO 
-            and (c.DEP_DGF_PSY_BSE > 0 or c.DEP_OQN_PSY_BSE > 0)
-            and c.year < year(f.DT_FIRST_AD)),
-         'No'
-      ) as Prev_Psy_Adm
-	  
-   from work.prs_after_had_rip as f;
-quit;
-
-data sasdata1.carto_ind;
-   set sasdata1.carto_ind;
-   
-   /* Define arrays for all columns starting with PSY_ and TPS_ */
-   array psy_vars[*] PSY_:;
-   array tps_vars[*] TPS_:;
-   
-   has_psy_flag = 0;
-   
-   /* Check if any PSY_ column is > 0 */
-   do i = 1 to dim(psy_vars);
-      if psy_vars[i] > 0 then has_psy_flag = 1;
-   end;
-   
-   /* Check if any TPS_ column is > 0 */
-   do i = 1 to dim(tps_vars);
-      if tps_vars[i] > 0 then has_psy_flag = 1;
-   end;
-   
-   drop i;
+proc sort data=work.prs_after_had_rip nodupkey;
+   by _all_;
 run;
-
-
-proc sql;
-   create table work.prs_after_had_rip_crto_DEP_IND as
-   select 
-      f.*,
-      
-	 /* Same with the other crto db */
-      coalesce(
-         (select put(max(c.year), 4.)  
-          from sasdata1.carto_ind as c 
-          where c.BEN_IDT_ANO = f.BEN_IDT_ANO 
-            and c.has_psy_flag = 1
-            and c.year < year(f.DT_FIRST_AD)),
-         'No'
-      ) as Prev_Psy_Dx_Rx
-	  
-   from work.prs_after_had_rip_crto_DEP as f;
-quit;
-
