@@ -149,8 +149,8 @@ proc sql;
       inner join sasdata1.ssr as r
          on p.BEN_IDT_ANO = r.BEN_IDT_ANO
         /* Ensure admission start is before index and end overlaps within 365 days prior */
-        and datepart(r.EXE_SOI_DTD) < p.DT_FIRST_AD
-        and datepart(r.EXE_SOI_DTF) > p.DT_FIRST_AD - 365
+        and r.EXE_SOI_DTD < p.DT_FIRST_AD
+        and r.EXE_SOI_DTF > p.DT_FIRST_AD - 365
       group by p.BEN_IDT_ANO
    ) as r
       on f.BEN_IDT_ANO = r.BEN_IDT_ANO;
@@ -177,8 +177,8 @@ proc sql;
       inner join sasdata1.mco as r
          on p.BEN_IDT_ANO = r.BEN_IDT_ANO
         /* Ensure admission start is before index and end overlaps within 365 days prior */
-        and datepart(r.EXE_SOI_DTD) < p.DT_FIRST_AD
-        and datepart(r.EXE_SOI_DTF) > p.DT_FIRST_AD - 365
+        and r.EXE_SOI_DTD < p.DT_FIRST_AD
+        and r.EXE_SOI_DTF > p.DT_FIRST_AD - 365
       group by p.BEN_IDT_ANO
    ) as r
       on f.BEN_IDT_ANO = r.BEN_IDT_ANO;
@@ -205,8 +205,8 @@ proc sql;
       inner join sasdata1.had as r
          on p.BEN_IDT_ANO = r.BEN_IDT_ANO
         /* Ensure admission start is before index and end overlaps within 365 days prior */
-        and datepart(r.EXE_SOI_DTD) < p.DT_FIRST_AD
-        and datepart(r.EXE_SOI_DTF) > p.DT_FIRST_AD - 365
+        and (r.EXE_SOI_DTD) < p.DT_FIRST_AD
+        and (r.EXE_SOI_DTF) > p.DT_FIRST_AD - 365
       group by p.BEN_IDT_ANO
    ) as r
       on f.BEN_IDT_ANO = r.BEN_IDT_ANO;
