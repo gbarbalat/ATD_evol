@@ -135,3 +135,59 @@ proc sql;
    left join work.density_agg as r
       on f.depcom = r.COM;
 quit;
+
+
+/* create prs_after_had_rip3 from prs_after_had_rip2 where you
+create column called First_Prescriber for each BEN_IDT_ANO which equals the PSP_SPE_COD where 
+EXE_SOI_DTD = DT_FIRST_AD.
+Create Adm_Psy_Cur where for each BEN_IDT_ANO, if RIP_0_Length or RIP_2_Length is >=0,
+then you put 1 in the column and it gets repeated till the end.
+Create Adm_Oth_Cur where for each BEN_IDT_ANO, if MCO_Length or SSR_Length or HAD_Length is > 0,
+then you put 1 in the column and it gets repeated till the end.
+Apply the following cumsum principle: for each BEN_IDT_ANO and each EXE_SOI_DTD, if Value is Yes, 
+the value of the created column is incremented by 1 (from 0) to
+HasAnx = Yes (create CumulAnx)
+HasOtherMeds=Yes (create CumulOtherMeds)
+SeenPsych=Yes (CumulPsych) */
+/* 1. Ensure data is properly sorted by patient and date */
+proc sort data=work.prs_after_had_rip2;
+   by BEN_IDT_ANO EXE_SOI_DTD;
+run;
+
+/* 2. Build prs_after_had_rip3 with state flags and cumulative counters */
+data work.prs_after_had_rip3;
+   set work.prs_after_had_rip2;
+   by BEN_IDT_ANO EXE_SOI_DTD;
+   
+   retain First_Prescriber Adm_Psy_Cur Adm_Oth_Cur CumulAnx CumulOtherMeds CumulPsych;
+   
+   /* Reset tracking variables at the start of each new patient */
+   if first.BEN_IDT_ANO then do;
+      call missing(First_Prescriber);
+      Adm_Psy_Cur = 0;
+      Adm_Oth_Cur = 0;
+      CumulAnx = 0;
+      CumulOtherMeds = 0;
+      CumulPsych = 0;
+   end;
+   
+   /* Capture the specialty code of the prescriber at the first admission date */
+   if EXE_SOI_DTD = DT_FIRST_AD and missing(First_Prescriber) then 
+      First_Prescriber = PSP_SPE_COD;
+      
+   /* Psychiatric admission flag (retained as 1 once triggered) */
+   if (not missing(RIP_0_Length) and RIP_0_Length >= 0) or 
+      (not missing(RIP_2_Length) and RIP_2_Length >= 0) then 
+      Adm_Psy_Cur = 1;
+      
+   /* Other hospital admission flags (retained as 1 once triggered) */
+   if (not missing(MCO_Length) and MCO_Length > 0) or 
+      (not missing(SSR_Length) and SSR_Length > 0) or 
+      (not missing(HAD_Length) and HAD_Length > 0) then 
+      Adm_Oth_Cur = 1;
+      
+   /* Cumulative sum counters for Yes flags */
+   if upcase(HasAnx) = 'YES' then CumulAnx + 1;
+   if upcase(HasOtherMeds) = 'YES' then CumulOtherMeds + 1;
+   if upcase(SeenPsych) = 'YES' then CumulPsych + 1;
+run;
