@@ -98,3 +98,40 @@ quit;
 /* go to rfcommun.denb_ps_commune_01jan2022, where DEP is our BEN_DEP and COM is our BEN_RES_COM, 
 for each join in prs_after_had_rip, calculate sum of NB_PS for SPE = "01" (GP) and SPE = "33" (Psych) -> I'll have 
 2 additional columns in prs_after_had_rip called Nb_GP and Nb_Psych respectively*/
+
+/* go to rfcommun.defa_uu2020, where CODGEO is our depcom, and gather for each row FDEP20_quint and P20_POP */
+proc sql;
+   create table work.prs_after_had_rip as
+   select 
+      f.*,
+      r.FDEP20_quint,
+      r.P20_POP
+   from work.prs_after_had_rip as f
+   left join rfcommun.defa_uu2020 as r
+      on f.depcom = r.CODGEO;
+quit;
+
+/* go to rfcommun.denb_ps_commune_01jan2022, where DEP is our BEN_DEP and COM is our BEN_RES_COM, 
+for each join in prs_after_had_rip, calculate sum of NB_PS for SPE = "01" (GP) and SPE = "33" (Psych) -> I'll have 
+2 additional columns in prs_after_had_rip called Nb_GP and Nb_Psych respectively*/
+
+proc sql;
+   /* 1. Calculate density sums per commune */
+   create table work.density_agg as
+   select 
+      put(COM, $5.) as COM,
+      sum(case when SPE = '01' then NB_PS else 0 end) as Nb_GP,
+      sum(case when SPE = '33' then NB_PS else 0 end) as Nb_Psych
+   from rfcommun.denb_ps_commune_01jan2022
+   group by calculated COM;
+
+   /* 2. Join the aggregated density to your main dataset */
+   create table work.prs_after_had_rip2 as
+   select 
+      f.*,
+      coalesce(r.Nb_GP, 0) as Nb_GP,
+      coalesce(r.Nb_Psych, 0) as Nb_Psych
+   from work.prs_after_had_rip as f
+   left join work.density_agg as r
+      on f.depcom = r.COM;
+quit;
