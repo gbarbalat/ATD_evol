@@ -170,3 +170,19 @@ proc sql;
    select *
    from work.rip_extract_all;
 quit;
+
+/* SOLVING THE DATE ISSUE */
+data sasdata1.rip;
+   set sasdata1.rip; 
+   
+   /* Standardize existing date components */
+   EXE_SOI_DTD = datepart(EXE_SOI_DTD);
+   EXE_SOI_DTF = datepart(EXE_SOI_DTF);
+   
+   /* Calculate new milestone dates */
+   rip_start = EXE_SOI_DTD + ENT_DEL_DAT;
+   rip_end = rip_start + sum(PRE_JOU_NBJ, PRE_DEM_JOU_NBJ/2);
+   
+   /* Apply date9. format to all date columns */
+   format EXE_SOI_DTD EXE_SOI_DTF rip_start rip_end date9.;
+run;
