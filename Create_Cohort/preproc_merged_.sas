@@ -1,4 +1,6 @@
-/* simply aggregates the 4 other preproc_merged_xxx.sas scripts to be run in one go*/
+/* simply aggregates the 4 other preproc_merged_xxx.sas scripts to be run in one go
+update: change where to join to increase computational efficiency
+*/
 
 /* ========== 
 === CHUNK 1 ===
@@ -40,8 +42,8 @@ proc sql;
    from work.top10_ids as t
    inner join sasdata1.prs_rx as r
       on t.BEN_IDT_ANO = r.BEN_IDT_ANO
-   where r.EXE_SOI_DTD >= t.DT_FIRST_AD
-     and (
+   and r.EXE_SOI_DTD >= t.DT_FIRST_AD
+     where (
                     r.PHA_ATC_CLA like 'N05A%' /* antipsychotics - lithium */
                 /* or ref.PHA_ATC_CLA like 'N05B%' 
                  or ref.PHA_ATC_CLA like 'N05C%' anxiolytics, hypnotics */
@@ -68,29 +70,41 @@ data work.filtered_prs2;
 run;
 
 /* Step 3: Add next_exe_date using a universal correlated subquery */
+/* 1. Find the next dispensing date via a self-join on work.filtered_prs2 */
+proc sql;
+   create table work.next_dates as
+   select 
+      t1.BEN_IDT_ANO,
+      t1.EXE_SOI_DTD,
+      min(t2.EXE_SOI_DTD) as next_exe_date
+   from work.filtered_prs2 as t1
+   left join work.filtered_prs2 as t2
+      on t1.BEN_IDT_ANO = t2.BEN_IDT_ANO
+     and t2.EXE_SOI_DTD > t1.EXE_SOI_DTD
+   group by t1.BEN_IDT_ANO, t1.EXE_SOI_DTD;
+quit;
+
+/* 2. Merge back and apply the fallback logic */
 proc sql;
    create table work.filtered_prs3 as
    select 
       t1.*,
-      /* Finds the next dispensing date, or falls back to the earliest valid date */
       coalesce(
-         (select min(t2.EXE_SOI_DTD) 
-            from work.filtered_prs2 as t2 
-            where t2.BEN_IDT_ANO = t1.BEN_IDT_ANO 
-              and t2.EXE_SOI_DTD > t1.EXE_SOI_DTD),
+         n.next_exe_date,
          min(
             intnx('year', t1.DT_FIRST_AD, 1, 'same'), 
             t1.MAX_TRT_DTD, 
-            /* Treat 1600 sentinel/living death dates as missing so min() ignores them */
             case 
                when t1.BEN_DCD_DTE = . or year(datepart(t1.BEN_DCD_DTE)) < 1960 then . 
                else datepart(t1.BEN_DCD_DTE) 
             end
          )
-      ) as next_exe_date
-   from work.filtered_prs2 as t1;
+      ) as next_exe_date format=date9.
+   from work.filtered_prs2 as t1
+   left join work.next_dates as n
+      on t1.BEN_IDT_ANO = n.BEN_IDT_ANO
+     and t1.EXE_SOI_DTD = n.EXE_SOI_DTD;
 quit;
-
 
 /* Step 4: Apply date formats cleanly in a DATA step */
 data work.prs_intervals;
@@ -943,24 +957,39 @@ quit;
 
 
 /* check CRTO databses and create column Prev_Psy_Dx_Rx (No, Latest Year) + Prev_Psy_Adm (No, Latest Year) */
+/* 1. Extract unique patients and their first admission year */
+proc sql noprint;
+   create table work.patient_index as
+   select distinct BEN_IDT_ANO, DT_FIRST_AD
+   from work.prs_ald_orc_hosp_before;
+quit;
+
+/* 2. Pre-aggregate the max prior psychiatric year per patient */
+proc sql;
+   create table work.carto_filtered as
+   select 
+      p.BEN_IDT_ANO,
+      put(max(c.year), 4.) as max_psy_year
+   from work.patient_index as p
+   inner join sasdata1.carto_dep as c
+      on p.BEN_IDT_ANO = c.BEN_IDT_ANO
+   where (c.DEP_DGF_PSY_BSE > 0 or c.DEP_OQN_PSY_BSE > 0)
+     and c.year < year(p.DT_FIRST_AD)
+   group by p.BEN_IDT_ANO;
+quit;
+
+/* 3. Left join the result back and assign 'No' as the default */
 proc sql;
    create table work.prs_ald_orc_hosp_crto_DEP_before as
    select 
       f.*,
-      
-      /* Find latest prior psychiatric year, or default to 'No' */
-      coalesce(
-         (select put(max(c.year), 4.) 
-          from sasdata1.carto_dep as c 
-          where c.BEN_IDT_ANO = f.BEN_IDT_ANO 
-            and (c.DEP_DGF_PSY_BSE > 0 or c.DEP_OQN_PSY_BSE > 0)
-            and c.year < year(f.DT_FIRST_AD)),
-         'No'
-      ) as Prev_Psy_Adm
-	  
-   from work.prs_ald_orc_hosp_before as f;
+      coalesce(c.max_psy_year, 'No') as Prev_Psy_Adm
+   from work.prs_ald_orc_hosp_before as f
+   left join work.carto_filtered as c
+      on f.BEN_IDT_ANO = c.BEN_IDT_ANO;
 quit;
 
+/* same for carto_ind */
 data sasdata1.carto_ind;
    set sasdata1.carto_ind;
    
@@ -984,23 +1013,38 @@ data sasdata1.carto_ind;
 run;
 
 
+/* 1. Extract unique patients and their first admission year */
+proc sql noprint;
+   create table work.patient_index_ind as
+   select distinct BEN_IDT_ANO, DT_FIRST_AD
+   from work.prs_ald_orc_hosp_crto_DEP_before;
+quit;
+
+/* 2. Pre-aggregate the max prior year per patient from carto_ind */
+proc sql;
+   create table work.carto_ind_filtered as
+   select 
+      p.BEN_IDT_ANO,
+      put(max(c.year), 4.) as max_ind_year
+   from work.patient_index_ind as p
+   inner join sasdata1.carto_ind as c
+      on p.BEN_IDT_ANO = c.BEN_IDT_ANO
+   where c.has_psy_flag = 1
+     and c.year < year(p.DT_FIRST_AD)
+   group by p.BEN_IDT_ANO;
+quit;
+
+/* 3. Left join the result back and assign 'No' as the default */
 proc sql;
    create table work.prs_ald_orc_hosp_crto_before as
    select 
       f.*,
-      
-	 /* Same with the other crto db */
-      coalesce(
-         (select put(max(c.year), 4.)  
-          from sasdata1.carto_ind as c 
-          where c.BEN_IDT_ANO = f.BEN_IDT_ANO 
-            and c.has_psy_flag = 1
-            and c.year < year(f.DT_FIRST_AD)),
-         'No'
-      ) as Prev_Psy_Dx_Rx
-	  
-   from work.prs_ald_orc_hosp_crto_DEP_before as f;
+      coalesce(c.max_ind_year, 'No') as Prev_Psy_Dx_Rx
+   from work.prs_ald_orc_hosp_crto_DEP_before as f
+   left join work.carto_ind_filtered as c
+      on f.BEN_IDT_ANO = c.BEN_IDT_ANO;
 quit;
+
 
 
 /* ==================
