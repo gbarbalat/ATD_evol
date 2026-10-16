@@ -35,9 +35,9 @@ data work.PRS_ALD_ORC_HOSP_CRTO_BEFORE;
    drop local_date m y;
 run;
 
-/* take PRS_AFTER_HAD_RIP and build up depcom and dept variables (local variables) */
-data work.prs_after_had_rip;
-   set work.prs_after_had_rip;
+/* take PRS_ALD_ORC_HOSP_CRTO_BEFORE and build up depcom and dept variables (geographical variables) */
+data work.PRS_ALD_ORC_HOSP_CRTO_G_BEFORE;
+   set work.PRS_ALD_ORC_HOSP_CRTO_BEFORE;
    
    length depcom $ 10 dept $ 5 region $ 40;
    
@@ -85,35 +85,19 @@ run;
 
 /* go to rfcommun.defa_uu2020, where CODGEO is our depcom, and gather for each row FDEP20_quint and P20_POP */
 proc sql;
-   create table work.prs_after_had_rip as
+   create table work.PRS_ALD_ORC_HOSP_CRTO_GE_BEFORE as
    select 
       f.*,
       r.FDEP20_quint,
       r.P20_POP
-   from work.prs_after_had_rip as f
+   from work.PRS_ALD_ORC_HOSP_CRTO_G_BEFORE as f
    left join rfcommun.defa_uu2020 as r
       on f.depcom = r.CODGEO;
 quit;
 
 /* go to rfcommun.denb_ps_commune_01jan2022, where DEP is our BEN_DEP and COM is our BEN_RES_COM, 
-for each join in prs_after_had_rip, calculate sum of NB_PS for SPE = "01" (GP) and SPE = "33" (Psych) -> I'll have 
-2 additional columns in prs_after_had_rip called Nb_GP and Nb_Psych respectively*/
-
-/* go to rfcommun.defa_uu2020, where CODGEO is our depcom, and gather for each row FDEP20_quint and P20_POP */
-proc sql;
-   create table work.prs_after_had_rip as
-   select 
-      f.*,
-      r.FDEP20_quint,
-      r.P20_POP
-   from work.prs_after_had_rip as f
-   left join rfcommun.defa_uu2020 as r
-      on f.depcom = r.CODGEO;
-quit;
-
-/* go to rfcommun.denb_ps_commune_01jan2022, where DEP is our BEN_DEP and COM is our BEN_RES_COM, 
-for each join in prs_after_had_rip, calculate sum of NB_PS for SPE = "01" (GP) and SPE = "33" (Psych) -> I'll have 
-2 additional columns in prs_after_had_rip called Nb_GP and Nb_Psych respectively*/
+for each join in PRS_ALD_ORC_HOSP_CRTO_GE_BEFORE, calculate sum of NB_PS for SPE = "01" (GP) and SPE = "33" (Psych) -> I'll have 
+2 additional columns in PRS_ALD_ORC_HOSP_CRTO_GEO_BEFORE called Nb_GP and Nb_Psych respectively*/
 
 proc sql;
    /* 1. Calculate density sums per commune */
@@ -126,19 +110,19 @@ proc sql;
    group by calculated COM;
 
    /* 2. Join the aggregated density to your main dataset */
-   create table work.prs_after_had_rip2 as
+   create table work.PRS_ALD_ORC_HOSP_CRTO_GEO_BEFORE as
    select 
       f.*,
       coalesce(r.Nb_GP, 0) as Nb_GP,
       coalesce(r.Nb_Psych, 0) as Nb_Psych
-   from work.prs_after_had_rip as f
+   from work.PRS_ALD_ORC_HOSP_CRTO_GEO_BEFORE as f
    left join work.density_agg as r
       on f.depcom = r.COM;
 quit;
 
 
-/* create prs_after_had_rip3 from prs_after_had_rip2 where you
-create column called First_Prescriber for each BEN_IDT_ANO which equals the PSP_SPE_COD where 
+/* create prs_ald_orc_hosp_presc_after from prs_ald_orc_hosp_after where you
+create First_Prescriber for each BEN_IDT_ANO which equals the PSP_SPE_COD where 
 EXE_SOI_DTD = DT_FIRST_AD.
 Create Adm_Psy_Cur where for each BEN_IDT_ANO, if RIP_0_Length or RIP_2_Length is >=0,
 then you put 1 in the column and it gets repeated till the end.
@@ -150,13 +134,13 @@ HasAnx = Yes (create CumulAnx)
 HasOtherMeds=Yes (create CumulOtherMeds)
 SeenPsych=Yes (CumulPsych) */
 /* 1. Ensure data is properly sorted by patient and date */
-proc sort data=work.prs_after_had_rip2;
+proc sort data=work.prs_ald_orc_hosp_after;
    by BEN_IDT_ANO EXE_SOI_DTD;
 run;
 
-/* 2. Build prs_after_had_rip3 with state flags and cumulative counters */
-data work.prs_after_had_rip3;
-   set work.prs_after_had_rip2;
+/* 2. Build prs_ald_orc_hosp_presc_after with state flags and cumulative counters */
+data work.prs_ald_orc_hosp_after;
+   set work.prs_ald_orc_hosp_after;
    by BEN_IDT_ANO EXE_SOI_DTD;
    
    retain First_Prescriber Adm_Psy_Cur Adm_Oth_Cur CumulAnx CumulOtherMeds CumulPsych;
