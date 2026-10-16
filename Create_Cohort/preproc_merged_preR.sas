@@ -1,9 +1,9 @@
 /* 1. Remove duplicate rows based on patient, date, and drug label */
-proc sort data=work.prs_ald_orc_hosp_crto_before nodupkey out=work.prs_ald_orc_hosp_crto_rd_before;
+proc sort data=work.prs_ald_orc_hosp_crto_geo_before nodupkey out=work._before;
    by BEN_IDT_ANO EXE_SOI_DTD PHA_ATC_LIB;
 run;
 
-proc sort data=work.prs_ald_orc_hosp_after nodupkey out=work.prs_ald_orc_hosp_rd_after;
+proc sort data=work.prs_ald_orc_hosp_presc_after nodupkey out=work._after;
    by BEN_IDT_ANO EXE_SOI_DTD PHA_ATC_LIB;
 run;
 
@@ -19,7 +19,7 @@ data work.cv_events_before;
    
    /* First pass: Concatenate PHA_ATC_LIB and evaluate ATC classification flags per group */
    do while(1);
-      set work.prs_ald_orc_hosp_crto_rd_before;
+      set work._before;
       by BEN_IDT_ANO EXE_SOI_DTD;
       
       if first.EXE_SOI_DTD then do;
@@ -49,7 +49,7 @@ data work.cv_events_before;
    
    /* Second pass: Output rows, compute relative times, and assign the event type */
    do while(1);
-      set work.prs_ald_orc_hosp_crto_rd_before;
+      set work._before;
       by BEN_IDT_ANO EXE_SOI_DTD;
       
       /* Transform dates into relative time (in days) from dt_first_ad */
