@@ -1,6 +1,8 @@
 /* simply aggregates the 4 other preproc_merged_xxx.sas scripts to be run in one go*/
 
 /* ========== 
+=== CHUNK 1 ===
+=== _after ====
 ============= */
 /* Step 1: Extract the first 10 distinct beneficiaries and their DT_FIRST_AD */
 proc sql outobs=10;
@@ -682,6 +684,8 @@ proc sort data=work.prs_ald_orc_hosp_after nodupkey;
 run;
 
 /* ==========
+== CHUNK 2 ===
+== BEFORE ====
 ============ */
 /* from prs_intervals, obtained from preproc_merged_after.sas */
 
@@ -994,17 +998,19 @@ proc sql;
 quit;
 
 
-/* ==========
-========== */
+/* ==================
+=== CHUNK 3 =========
+== INCLUDE OTHER ====
+==================== */
 /* add refill_Nb column at each different EXE_SOI_DTD per BEN_IDT_ANO */
 /* 1. Ensure data is sorted by patient and date */
-proc sort data=work.PRS_ALD_ORC_HOSP_CRTO_AFTER;
+proc sort data=work.PRS_ALD_ORC_HOSP_AFTER;
    by BEN_IDT_ANO EXE_SOI_DTD;
 run;
 
 /* 2. Generate the incrementing refill counter */
-data work.PRS_ALD_ORC_HOSP_CRTO_AFTER;
-   set work.PRS_ALD_ORC_HOSP_CRTO_AFTER;
+data work.PRS_ALD_ORC_HOSP_AFTER;
+   set work.PRS_ALD_ORC_HOSP_AFTER;
    by BEN_IDT_ANO EXE_SOI_DTD;
    retain refill_Nb;
    
@@ -1014,8 +1020,8 @@ run;
 
 
 /* now add season-year column from EXE_SOI_DTD which is data 9. */
-data work.PRS_ALD_ORC_HOSP_CRTO_AFTER;
-   set work.PRS_ALD_ORC_HOSP_CRTO_AFTER;
+data work.PRS_ALD_ORC_HOSP_AFTER;
+   set work.PRS_ALD_ORC_HOSP_AFTER;
    
    /* Extract date part and pull month/year components */
    local_date = EXE_SOI_DTD;
@@ -1033,9 +1039,9 @@ data work.PRS_ALD_ORC_HOSP_CRTO_AFTER;
    drop local_date m y;
 run;
 
-/* take PRS_ALD_ORC_HOSP_CRTO_BEFORE and build up depcom and dept variables (geographical variables) */
-data work.PRS_ALD_ORC_HOSP_CRTO_G_BEFORE;
-   set work.PRS_ALD_ORC_HOSP_CRTO_BEFORE;
+/* take PRS_ALD_ORC_HOSP_AFTER and build up depcom and dept variables (geographical variables) */
+data work.PRS_ALD_ORC_HOSP_G_AFTER;
+   set work.PRS_ALD_ORC_HOSP_AFTER;
    
    length depcom $ 10 dept $ 5 region $ 40;
    
@@ -1083,19 +1089,19 @@ run;
 
 /* go to rfcommun.defa_uu2020, where CODGEO is our depcom, and gather for each row FDEP20_quint and P20_POP */
 proc sql;
-   create table work.PRS_ALD_ORC_HOSP_CRTO_GE_BEFORE as
+   create table work.PRS_ALD_ORC_HOSP_GE_AFTER as
    select 
       f.*,
       r.FDEP20_quint,
       r.P20_POP
-   from work.PRS_ALD_ORC_HOSP_CRTO_G_BEFORE as f
+   from work.PRS_ALD_ORC_HOSP_G_AFTER as f
    left join rfcommun.defa_uu2020 as r
       on f.depcom = r.CODGEO;
 quit;
 
 /* go to rfcommun.denb_ps_commune_01jan2022, where DEP is our BEN_DEP and COM is our BEN_RES_COM, 
-for each join in PRS_ALD_ORC_HOSP_CRTO_GE_BEFORE, calculate sum of NB_PS for SPE = "01" (GP) and SPE = "33" (Psych) -> I'll have 
-2 additional columns in PRS_ALD_ORC_HOSP_CRTO_GEO_BEFORE called Nb_GP and Nb_Psych respectively*/
+for each join in PRS_ALD_ORC_HOSP_GE_AFTER, calculate sum of NB_PS for SPE = "01" (GP) and SPE = "33" (Psych) -> I'll have 
+2 additional columns in PRS_ALD_ORC_HOSP_GEO_AFTER called Nb_GP and Nb_Psych respectively*/
 
 proc sql;
    /* 1. Calculate density sums per commune */
@@ -1108,18 +1114,18 @@ proc sql;
    group by calculated COM;
 
    /* 2. Join the aggregated density to your main dataset */
-   create table work.PRS_ALD_ORC_HOSP_CRTO_GEO_BEFORE as
+   create table work.PRS_ALD_ORC_HOSP_GEO_AFTER as
    select 
       f.*,
       coalesce(r.Nb_GP, 0) as Nb_GP,
       coalesce(r.Nb_Psych, 0) as Nb_Psych
-   from work.PRS_ALD_ORC_HOSP_CRTO_GE_BEFORE as f
+   from work.PRS_ALD_ORC_HOSP_GE_AFTER as f
    left join work.density_agg as r
       on f.depcom = r.COM;
 quit;
 
 
-/* create prs_ald_orc_hosp_presc_after from prs_ald_orc_hosp_after where you
+/* create PRS_ALD_ORC_HOSP_GEO_PRESC_AFTER from PRS_ALD_ORC_HOSP_GEO_AFTER where you
 create First_Prescriber for each BEN_IDT_ANO which equals the PSP_SPE_COD where 
 EXE_SOI_DTD = DT_FIRST_AD.
 Create Adm_Psy_Cur where for each BEN_IDT_ANO, if RIP_0_Length or RIP_2_Length is >=0,
@@ -1132,13 +1138,13 @@ HasAnx = Yes (create CumulAnx)
 HasOtherMeds=Yes (create CumulOtherMeds)
 SeenPsych=Yes (CumulPsych) */
 /* 1. Ensure data is properly sorted by patient and date */
-proc sort data=work.prs_ald_orc_hosp_after;
+proc sort data=work.PRS_ALD_ORC_HOSP_GEO_AFTER;
    by BEN_IDT_ANO EXE_SOI_DTD;
 run;
 
 /* 2. Build prs_ald_orc_hosp_presc_after with state flags and cumulative counters */
-data work.prs_ald_orc_hosp_presc_after;
-   set work.prs_ald_orc_hosp_after;
+data work.PRS_ALD_ORC_HOSP_GEO_PRESC_AFTER;
+   set work.PRS_ALD_ORC_HOSP_GEO_AFTER;
    by BEN_IDT_ANO EXE_SOI_DTD;
    
    retain First_Prescriber Adm_Psy_Cur Adm_Oth_Cur CumulAnx CumulOtherMeds CumulPsych;
@@ -1179,7 +1185,7 @@ run;
 /* ==========
 ========== */
 /* Remove duplicate rows based on patient, date, and drug label */
-proc sort data=work.prs_ald_orc_hosp_crto_geo_before nodupkey out=work.cv_before;
+proc sort data=work.prs_ald_orc_hosp_crto_before nodupkey out=work.cv_before;
    by BEN_IDT_ANO EXE_SOI_DTD PHA_ATC_LIB;
 run;
 
@@ -1191,7 +1197,7 @@ data work.cv_before;
 run;
 
 
-proc sort data=work.prs_ald_orc_hosp_presc_after nodupkey out=work.cv_after;
+proc sort data=work.PRS_ALD_ORC_HOSP_GEO_PRESC_AFTER nodupkey out=work.cv_after;
    by BEN_IDT_ANO EXE_SOI_DTD PHA_ATC_LIB;
 run;
 
