@@ -1,5 +1,5 @@
 /* Remove duplicate rows based on patient, date, and drug label */
-proc sort data=work.prs_ald_orc_hosp_crto_geo_before nodupkey out=work.cv_before;
+proc sort data=work.prs_ald_orc_hosp_crto_before nodupkey out=work.cv_before;
    by BEN_IDT_ANO EXE_SOI_DTD PHA_ATC_LIB;
 run;
 
@@ -11,7 +11,7 @@ data work.cv_before;
 run;
 
 
-proc sort data=work.prs_ald_orc_hosp_presc_after nodupkey out=work.cv_after;
+proc sort data=work.prs_ald_orc_hosp_geo_presc_after nodupkey out=work.cv_after;
    by BEN_IDT_ANO EXE_SOI_DTD PHA_ATC_LIB;
 run;
 
