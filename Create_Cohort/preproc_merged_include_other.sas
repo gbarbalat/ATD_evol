@@ -139,7 +139,7 @@ proc sort data=work.prs_ald_orc_hosp_after;
 run;
 
 /* 2. Build prs_ald_orc_hosp_presc_after with state flags and cumulative counters */
-data work.prs_ald_orc_hosp_after;
+data work.prs_ald_orc_hosp_presc_after;
    set work.prs_ald_orc_hosp_after;
    by BEN_IDT_ANO EXE_SOI_DTD;
    
