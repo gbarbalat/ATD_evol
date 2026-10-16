@@ -10,6 +10,11 @@ proc sql outobs=10;
    select distinct BEN_IDT_ANO, DT_FIRST_AD
    from sasdata1.prs_rx;
 quit;
+proc sql;
+   create table work.top10_ids as
+   select distinct BEN_IDT_ANO, DT_FIRST_AD
+   from sasdata1.prs_rx;
+quit;
 
 /* Step 2: Join back to prs_rx to get candidate antidepressant lines on or after DT_FIRST_AD */
 proc sql;
