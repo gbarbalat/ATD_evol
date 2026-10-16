@@ -1,5 +1,9 @@
 /* 1. Remove duplicate rows based on patient, date, and drug label */
-proc sort data=sasdata1.merged_include_other nodupkey out=work.merged_include_other_rd;
+proc sort data=work.prs_ald_orc_hosp_crto_before nodupkey out=work.prs_ald_orc_hosp_crto_rd_before;
+   by BEN_IDT_ANO EXE_SOI_DTD PHA_ATC_LIB;
+run;
+
+proc sort data=work.prs_ald_orc_hosp_after nodupkey out=work.prs_ald_orc_hosp_rd_after;
    by BEN_IDT_ANO EXE_SOI_DTD PHA_ATC_LIB;
 run;
 
@@ -10,12 +14,12 @@ ATD_OTH if the values start by N06A but do not include N06AB;
 SWI_CLA if any of the values of PHA_ATC_CLA does not start by N06A; 
 DEATH  if  next_exe_date = datepart(BEN_DCD_DTE); 
 CENS if next_exe_date=datepart(MAX_TRT_DTE) */
-data work.merged_tmp;
+data work.cv_events_before;
    length psy_meds $ 500 event $ 15;
    
    /* First pass: Concatenate PHA_ATC_LIB and evaluate ATC classification flags per group */
    do while(1);
-      set work.merged_include_other_rd;
+      set work.prs_ald_orc_hosp_crto_rd_before;
       by BEN_IDT_ANO EXE_SOI_DTD;
       
       if first.EXE_SOI_DTD then do;
@@ -45,16 +49,16 @@ data work.merged_tmp;
    
    /* Second pass: Output rows, compute relative times, and assign the event type */
    do while(1);
-      set work.merged_include_other_rd;
+      set work.prs_ald_orc_hosp_crto_rd_before;
       by BEN_IDT_ANO EXE_SOI_DTD;
       
       /* Transform dates into relative time (in days) from dt_first_ad */
       start = intck('day', dt_first_ad, EXE_SOI_DTD);
       stop  = intck('day', dt_first_ad, next_exe_date);
       
-      /* Event classification logic 
+      /* Event classification logic */
       if next_exe_date = datepart(BEN_DCD_DTE) then event = 'DEATH';
-      else if next_exe_date = datepart(MAX_TRT_DTE) then event = 'CENS';*/
+      else if next_exe_date = datepart(MAX_TRT_DTE) then event = 'CENS';
       if all_n06ab = 1 then event = 'SSRI';
       else if all_n06a = 1 and all_n06ab = 0 then event = 'ATD_OTH';
       else event = 'SWI_CLA';
@@ -64,20 +68,20 @@ data work.merged_tmp;
    end;
 run;
 
-proc sort data=work.merged_tmp nodupkey out=work.merged_tmp2;
+proc sort data=work.cv_events_before nodupkey out=work.cv_events_before;
    by BEN_IDT_ANO EXE_SOI_DTD psy_meds;
 run;
 
-/* now create work.merged_tmp3 from work.merged_tmp2 where for each BEN_IDT_ANO, 
+/* now create from work.cv_events_before where for each BEN_IDT_ANO, 
 each time it encounters event = "SWI_CLA", it removes all rows past that line. */
 /* 1. Ensure data is ordered chronologically per patient */
-proc sort data=work.merged_tmp2;
+proc sort data=work.cv_events_before;
    by BEN_IDT_ANO start;
 run;
 
 /* 2. Truncate follow-up after the SWI_CLA event */
-data work.merged_tmp3;
-   set work.merged_tmp2;
+data work.cv_events_rd_before;
+   set work.cv_events_before;
    by BEN_IDT_ANO;
    
    retain stop_patient;
