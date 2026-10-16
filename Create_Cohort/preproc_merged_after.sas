@@ -524,7 +524,7 @@ quit;
 
 /* Same with HAD */
 proc sql;
-   create table work.prs_after_had as
+   create table work.prs_ald_orc_ssr_mco_had_after as
    select 
       f.*,
       
@@ -592,7 +592,7 @@ quit;
 
 /* Same with RIP */
 proc sql;
-   create table work.prs_after_had_rip as
+   create table work.prs_ald_orc_hosp_after as
    select 
       f.*,
       
@@ -626,7 +626,7 @@ proc sql;
  	  r.AGE_RIP
 
 
-   from work.prs_after_had as f
+   from work.prs_ald_orc_ssr_mco_had_after as f
    left join (
       select 
          BEN_IDT_ANO as BEN_IDT_ANO,
@@ -673,6 +673,6 @@ proc sql;
 	  f.HAD_Length;
 quit;
 
-proc sort data=work.prs_after_had_rip nodupkey;
+proc sort data=work.prs_ald_orc_hosp_after nodupkey;
    by _all_;
 run;
