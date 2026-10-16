@@ -1,12 +1,12 @@
 /* add refill_Nb column at each different EXE_SOI_DTD per BEN_IDT_ANO */
 /* 1. Ensure data is sorted by patient and date */
-proc sort data=work.PRS_ALD_ORC_HOSP_CRTO_BEFORE;
+proc sort data=work.PRS_ALD_ORC_HOSP_CRTO_AFTER;
    by BEN_IDT_ANO EXE_SOI_DTD;
 run;
 
 /* 2. Generate the incrementing refill counter */
-data work.PRS_ALD_ORC_HOSP_CRTO_BEFORE;
-   set work.PRS_ALD_ORC_HOSP_CRTO_BEFORE;
+data work.PRS_ALD_ORC_HOSP_CRTO_AFTER;
+   set work.PRS_ALD_ORC_HOSP_CRTO_AFTER;
    by BEN_IDT_ANO EXE_SOI_DTD;
    retain refill_Nb;
    
