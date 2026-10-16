@@ -998,13 +998,13 @@ quit;
 ========== */
 /* add refill_Nb column at each different EXE_SOI_DTD per BEN_IDT_ANO */
 /* 1. Ensure data is sorted by patient and date */
-proc sort data=work.PRS_ALD_ORC_HOSP_CRTO_BEFORE;
+proc sort data=work.PRS_ALD_ORC_HOSP_CRTO_AFTER;
    by BEN_IDT_ANO EXE_SOI_DTD;
 run;
 
 /* 2. Generate the incrementing refill counter */
-data work.PRS_ALD_ORC_HOSP_CRTO_BEFORE;
-   set work.PRS_ALD_ORC_HOSP_CRTO_BEFORE;
+data work.PRS_ALD_ORC_HOSP_CRTO_AFTER;
+   set work.PRS_ALD_ORC_HOSP_CRTO_AFTER;
    by BEN_IDT_ANO EXE_SOI_DTD;
    retain refill_Nb;
    
@@ -1014,8 +1014,8 @@ run;
 
 
 /* now add season-year column from EXE_SOI_DTD which is data 9. */
-data work.PRS_ALD_ORC_HOSP_CRTO_BEFORE;
-   set work.PRS_ALD_ORC_HOSP_CRTO_BEFORE;
+data work.PRS_ALD_ORC_HOSP_CRTO_AFTER;
+   set work.PRS_ALD_ORC_HOSP_CRTO_AFTER;
    
    /* Extract date part and pull month/year components */
    local_date = EXE_SOI_DTD;
@@ -1229,7 +1229,7 @@ the value takes SSRI if the values of PHA_ATC_CLA all start with N06AB;
 ATD_OTH if the values start by N06A but do not include N06AB; 
 SWI_CLA if any of the values of PHA_ATC_CLA does not start by N06A; 
 DEATH  if  next_exe_date = BEN_DCD_DTE; 
-CENS if next_exe_date=MAX_TRT_DTE*/
+CENS if next_exe_date=MAX_TRT_DTD*/
 data work.cv_events_after;
    length psy_meds $ 500 event $ 15;
    
@@ -1274,7 +1274,7 @@ data work.cv_events_after;
       
       /* Event classification logic */
       if next_exe_date = BEN_DCD_DTE then event = 'DEATH';
-      else if next_exe_date = MAX_TRT_DTE then event = 'CENS';
+      else if next_exe_date = MAX_TRT_DTD then event = 'CENS';
       if all_n06ab = 1 then event = 'SSRI';
       else if all_n06a = 1 and all_n06ab = 0 then event = 'ATD_OTH';
       else event = 'SWI_CLA';
