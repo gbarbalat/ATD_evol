@@ -98,3 +98,33 @@ data work.cv_events_rd_before;
    if event = 'SWI_CLA' then stop_patient = 1;
 run;
 
+
+/* now merge _after and cv_events_rd_before */
+/* 1. Automatically find identical column names between the two datasets */
+proc sql noprint;
+   select distinct upcase(a.name) into :common_keys separated by ' '
+   from dictionary.columns as a
+   inner join dictionary.columns as b
+     on upcase(a.name) = upcase(b.name)
+   where a.libname = 'WORK' and a.memname = '_AFTER'
+     and b.libname = 'WORK' and b.memname = 'CV_EVENTS_RD_BEFORE';
+quit;
+
+/* Print the detected key columns to the log for verification */
+%put Common Merge Keys: &common_keys.;
+
+/* 2. Sort both datasets by the identified common columns */
+proc sort data=work._after;
+   by &common_keys.;
+run;
+
+proc sort data=work.cv_events_rd_before;
+   by &common_keys.;
+run;
+
+/* 3. Merge the datasets together by the common columns */
+data work.merged_;
+   merge work._after (in=a) 
+         work.cv_events_rd_before (in=b);
+   by &common_keys.;
+run;
