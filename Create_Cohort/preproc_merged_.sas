@@ -1113,7 +1113,7 @@ proc sql;
       f.*,
       coalesce(r.Nb_GP, 0) as Nb_GP,
       coalesce(r.Nb_Psych, 0) as Nb_Psych
-   from work.PRS_ALD_ORC_HOSP_CRTO_GEO_BEFORE as f
+   from work.PRS_ALD_ORC_HOSP_CRTO_GE_BEFORE as f
    left join work.density_agg as r
       on f.depcom = r.COM;
 quit;
