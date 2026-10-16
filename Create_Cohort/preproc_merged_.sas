@@ -1408,3 +1408,6 @@ proc sql;
       on a.BEN_IDT_ANO = b.BEN_IDT_ANO;
 quit;
 
+proc copy in=work out=sasdata1;
+   select merged_;
+run;
