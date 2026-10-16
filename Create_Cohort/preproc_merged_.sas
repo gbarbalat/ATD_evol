@@ -1182,8 +1182,10 @@ run;
 
 
 
-/* ==========
-========== */
+/* ==========================
+=== CHUNK 4 =================
+== MERGE BEFORE & AFTER ====
+============================ */
 /* Remove duplicate rows based on patient, date, and drug label */
 proc sort data=work.prs_ald_orc_hosp_crto_before nodupkey out=work.cv_before;
    by BEN_IDT_ANO EXE_SOI_DTD PHA_ATC_LIB;
