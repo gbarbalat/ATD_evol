@@ -1,3 +1,5 @@
+/* from prs_intervals, obtained from preproc_merged_after.sas */
+
 /* check for other meds in prs_rx */
 proc sql;
    create table work.prs_meds_before as
