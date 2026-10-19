@@ -69,7 +69,7 @@ proc sql;
               and t2.EXE_SOI_DTD > t1.EXE_SOI_DTD),
          min(
             intnx('year', t1.DT_FIRST_AD, 1, 'same'), 
-            t1.MAX_TRT_DTD, 
+            datepart(t1.MAX_TRT_DTD), 
             /* Treat 1600 sentinel/living death dates as missing so min() ignores them */
             case 
                when t1.BEN_DCD_DTE = . or year(datepart(t1.BEN_DCD_DTE)) < 1960 then . 
