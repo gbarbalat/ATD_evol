@@ -228,7 +228,7 @@ proc sql;
       /* FOR_ACT starting with '2' */
       case when coalesce(r.has_RIP_2, 0) = 1 then 'Yes' else 'No' end as Prev_RIP_2,
 
-      r.AGE_RIP
+      r.AGE_RIP_before
 
    from work.prs_ald_orc_ssr_mco_had_before as f
    left join (
@@ -236,7 +236,7 @@ proc sql;
          p.BEN_IDT_ANO,
          max(case when sub.FOR_ACT like '0%' then 1 else 0 end) as has_RIP_0,
          max(case when sub.FOR_ACT like '2%' then 1 else 0 end) as has_RIP_2,
-         max(sub.AGE_ANN) as AGE_RIP
+         max(sub.AGE_ANN) as AGE_RIP_before
       from (select distinct BEN_IDT_ANO, DT_FIRST_AD from work.prs_ald_orc_ssr_mco_had_before) as p
       inner join sasdata1.rip as sub
          on p.BEN_IDT_ANO = sub.BEN_IDT_ANO
