@@ -93,7 +93,7 @@ proc sql;
          n.next_exe_date,
          min(
             intnx('year', t1.DT_FIRST_AD, 1, 'same'), 
-            t1.MAX_TRT_DTD, 
+            datepart(t1.MAX_TRT_DTD), 
             case 
                when t1.BEN_DCD_DTE = . or year(datepart(t1.BEN_DCD_DTE)) < 1960 then . 
                else datepart(t1.BEN_DCD_DTE) 
