@@ -1196,17 +1196,21 @@ data work.PRS_ALD_ORC_HOSP_GEO_PRESC_AFTER;
    set work.PRS_ALD_ORC_HOSP_GEO_AFTER;
    by BEN_IDT_ANO EXE_SOI_DTD;
    
-   retain First_Prescriber Adm_Psy_Cur Adm_Oth_Cur CumulAnx CumulOtherMeds CumulPsych;
+   retain First_Prescriber Adm_Psy_Cur Adm_Oth_Cur CumulAnx CumulOtherMeds CumulPsych Lead_Prescriber _prev_psp;
    
    /* Reset tracking variables at the start of each new patient */
    if first.BEN_IDT_ANO then do;
-      call missing(First_Prescriber);
-      Adm_Psy_Cur = 0;
+	call missing(First_Prescriber, Lead_Prescriber, _prev_psp);
+	  Adm_Psy_Cur = 0;
       Adm_Oth_Cur = 0;
       CumulAnx = 0;
       CumulOtherMeds = 0;
       CumulPsych = 0;
    end;
+   else do;
+      Lead_Prescriber = _prev_psp;
+   end;
+   _prev_psp = PSP_SPE_COD;
    
    /* Capture the specialty code of the prescriber at the first admission date */
    if EXE_SOI_DTD = DT_FIRST_AD and missing(First_Prescriber) then 
