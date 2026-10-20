@@ -426,10 +426,10 @@ proc sql;
          when f.next_exe_date is null then 0
          else coalesce(sum(
             case 
-               when r.ssr_start <= f.next_exe_date 
-                and r.ssr_end >= f.EXE_SOI_DTD 
-               then min(f.next_exe_date, r.ssr_end) - max(f.EXE_SOI_DTD, r.ssr_start) + 1
-               else 0 
+               when r.ssr_start < f.next_exe_date 
+                and r.ssr_end > f.EXE_SOI_DTD 
+               then min(f.next_exe_date, r.ssr_end) - max(f.EXE_SOI_DTD, r.ssr_start) 
+               else -1 
             end
          ), 0)
       end as SSR_Length, 
@@ -437,7 +437,7 @@ proc sql;
 
    from work.prs_meds_visits_ald_orc as f
    left join (
-      select 
+      select distinct
          BEN_IDT_ANO as BEN_IDT_ANO,
          EXE_SOI_DTD as ssr_start,   
          EXE_SOI_DTF as ssr_end,
@@ -490,10 +490,10 @@ proc sql;
          when f.next_exe_date is null then 0
          else coalesce(sum(
             case 
-               when r.mco_start <= f.next_exe_date 
-                and r.mco_end >= f.EXE_SOI_DTD 
-               then min(f.next_exe_date, r.mco_end) - max(f.EXE_SOI_DTD, r.mco_start) + 1
-               else 0 
+               when r.mco_start < f.next_exe_date 
+                and r.mco_end > f.EXE_SOI_DTD 
+               then min(f.next_exe_date, r.mco_end) - max(f.EXE_SOI_DTD, r.mco_start) 
+               else -1 
             end
          ), 0)
       end as MCO_Length,
@@ -502,7 +502,7 @@ proc sql;
 
    from work.prs_meds_visits_ald_orc_ssr as f
    left join (
-      select 
+      select distinct
          BEN_IDT_ANO as BEN_IDT_ANO,
          EXE_SOI_DTD as mco_start,   
          EXE_SOI_DTF as mco_end,    
@@ -558,10 +558,10 @@ proc sql;
          when f.next_exe_date is null then 0
          else coalesce(sum(
             case 
-               when r.had_start <= f.next_exe_date 
-                and r.had_end >= f.EXE_SOI_DTD 
-               then min(f.next_exe_date, r.had_end) - max(f.EXE_SOI_DTD, r.had_start) + 1
-               else 0 
+               when r.had_start < f.next_exe_date 
+                and r.had_end > f.EXE_SOI_DTD 
+               then min(f.next_exe_date, r.had_end) - max(f.EXE_SOI_DTD, r.had_start) 
+               else -1 
             end
          ), 0)
       end as HAD_Length,
@@ -570,7 +570,7 @@ proc sql;
 
    from work.prs_meds_visits_ald_orc_ssr_mco as f
    left join (
-      select 
+      select distinct
          BEN_IDT_ANO as BEN_IDT_ANO,
          EXE_SOI_DTD as had_start,   
          EXE_SOI_DTF as had_end,
@@ -653,7 +653,7 @@ proc sql;
 
    from work.prs_ald_orc_ssr_mco_had_after as f
    left join (
-      select 
+      select distinct
          BEN_IDT_ANO as BEN_IDT_ANO,
          rip_start,   
          rip_end, 
