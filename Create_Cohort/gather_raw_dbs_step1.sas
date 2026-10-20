@@ -116,21 +116,11 @@ PROC SQL;
  %m_stats_table(nom_table=UNIQUE_BEN_IDT) ; 
 QUIT;
 
-/* 2. Collect all BEN_NIR_PSA, as well as BEN_DCD_DTE and MAX_TRT_DTD */
+/* 2. Collect all BEN_NIR_PSA */
 proc sql;
    create table ORAUSER.UNIQUE_BEN_IDT as
    select 
-      ir.BEN_IDT_ANO,
-      
-      /* 1. Maximum overall treatment date per beneficiary */
-      max(ir.MAX_TRT_DTD) format=datetime20. as MAX_TRT_DTD,
-      
-      /* 2. Real death date if present; falls back to 01JAN1600 if all rows are default */
-      coalesce(
-         max(case when ir.BEN_DCD_DTE ne '01JAN1600:00:00:00'dt then ir.BEN_DCD_DTE end),
-         max(ir.BEN_DCD_DTE)
-      ) format=datetime20. as BEN_DCD_DTE
-
+      ir.BEN_IDT_ANO      
    from ORAUSER.UNIQUE_BEN_NIR_TOT keys
    inner join ORAVUE.IR_BEN_R ir
        on  keys.BEN_NIR_PSA = ir.BEN_NIR_PSA
@@ -140,13 +130,24 @@ proc sql;
 quit;
 %m_stats_table(nom_table=ORAUSER.UNIQUE_BEN_IDT);
 
-/* 3. Cohort of unique BEN_IDT_ANO, with all possible ben_nir_tot per BEN_IDT_ANO */
+
+/* 3. Cohort of unique BEN_IDT_ANO, with all possible ben_nir_tot per BEN_IDT_ANO
+also collect BEN_DCD_DTE and MAX_TRT_DTD */
 proc sql;
     create table orauser.FC1_1 as
     select distinct 
         u.*,
         ir.BEN_NIR_PSA,
-        ir.BEN_RNG_GEM
+        ir.BEN_RNG_GEM, 
+		      /* 1. Maximum overall treatment date per beneficiary */
+      max(ir.MAX_TRT_DTD) format=datetime20. as MAX_TRT_DTD,
+      
+      /* 2. Real death date if present; falls back to 01JAN1600 if all rows are default */
+      coalesce(
+         max(case when ir.BEN_DCD_DTE ne '01JAN1600:00:00:00'dt then ir.BEN_DCD_DTE end),
+         max(ir.BEN_DCD_DTE)
+      ) format=datetime20. as BEN_DCD_DTE
+	  
     from orauser.UNIQUE_BEN_IDT as u
     inner join oravue.IR_BEN_R as ir
         on u.BEN_IDT_ANO = ir.BEN_IDT_ANO;
