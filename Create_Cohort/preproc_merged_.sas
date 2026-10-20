@@ -18,7 +18,7 @@ proc sql;
    from sasdata1.prs_rx;
 quit;
 
-/* Step 2: Join back to prs_rx to get candidate antidepressant lines on or after DT_FIRST_AD */
+/* Step 2: Join back to prs_rx to get candidate Rx lines on or after DT_FIRST_AD */
 proc sql;
    create table work.filtered_prs as
    select 
@@ -28,10 +28,11 @@ proc sql;
 	  r.BEN_RES_DPT,
 	  r.BEN_RES_COM,
       r.EXE_SOI_DTD,
-	  r.PRE_PRE_DTD
+	  r.PRE_PRE_DTD,
       r.PHA_ATC_CLA,
       r.PHA_ATC_LIB, 
 	  r.PHA_ACT_QSN,
+	  r.PHA_FRM_LIB,
 	  r.PSP_SPE_COD,
 	  r.PSP_ACT_NAT,
 	  r.RGO_ASU_NAT,
@@ -43,9 +44,9 @@ proc sql;
    from work.top10_ids as t
    inner join sasdata1.prs_rx as r
       on t.BEN_IDT_ANO = r.BEN_IDT_ANO
-   and r.PRE_PRE_DT >= t.DT_FIRST_AD
+   and r.PRE_PRE_DTD >= t.DT_FIRST_AD
      where (
-                    r.PHA_ATC_CLA like 'N05A%' /* antipsychotics - lithium */
+                 (r.PHA_ATC_CLA like 'N05A%' and r.PHA_ATC_CLA not like 'N05AA%') /* antipsychotics - lithium */
                 /* or ref.PHA_ATC_CLA like 'N05B%' 
                  or ref.PHA_ATC_CLA like 'N05C%' anxiolytics, hypnotics */
                  or r.PHA_ATC_CLA like 'N06A%' /* antidepressants */
@@ -132,6 +133,7 @@ proc sql;
       f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
       f.PHA_ACT_QSN,
+	  f.PHA_FRM_LIB,
       f.PSP_SPE_COD,
       f.PSP_ACT_NAT,
       f.RGO_ASU_NAT,
@@ -149,7 +151,7 @@ proc sql;
       select 
          BEN_IDT_ANO,
          datepart(PRE_PRE_DTD) as pre_date,
-         case when PHA_ATC_CLA like 'N05B%' or PHA_ATC_CLA like 'N05C%' then 1 else 0 end as is_anx,
+         case when PHA_ATC_CLA like 'N05B%' or PHA_ATC_CLA like 'N05C%'  or PHA_ATC_CLA like 'N05AA%' then 1 else 0 end as is_anx,
          case when not (PHA_ATC_CLA like 'N05B%' or PHA_ATC_CLA like 'N05C%') then 1 else 0 end as is_other
       from sasdata1.prs_rx
    ) as r
@@ -168,6 +170,7 @@ proc sql;
       f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
       f.PHA_ACT_QSN,
+	  f.PHA_FRM_LIB,
       f.PSP_SPE_COD,
       f.PSP_ACT_NAT,
       f.RGO_ASU_NAT,
@@ -190,7 +193,9 @@ proc sql;
       f.next_pre_date,
       f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
-      f.PHA_ACT_QSN,
+      f.PHA_ACT_QSN,	  
+	  f.PHA_FRM_LIB,
+
       f.PSP_SPE_COD,
       f.PSP_ACT_NAT,
       f.RGO_ASU_NAT,
@@ -245,6 +250,7 @@ proc sql;
       f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
       f.PHA_ACT_QSN,
+	  f.PHA_FRM_LIB,
       f.PSP_SPE_COD,
       f.PSP_ACT_NAT,
       f.RGO_ASU_NAT,
@@ -272,6 +278,7 @@ proc sql;
       f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
       f.PHA_ACT_QSN,
+	  f.PHA_FRM_LIB,
       f.PSP_SPE_COD,
       f.PSP_ACT_NAT,
       f.RGO_ASU_NAT,
@@ -319,6 +326,7 @@ proc sql;
       f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
       f.PHA_ACT_QSN,
+	  f.PHA_FRM_LIB,
       f.PSP_SPE_COD,
       f.PSP_ACT_NAT,
       f.RGO_ASU_NAT,
@@ -357,6 +365,7 @@ proc sql;
       f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
       f.PHA_ACT_QSN,
+	  f.PHA_FRM_LIB,
       f.PSP_SPE_COD,
       f.PSP_ACT_NAT,
       f.RGO_ASU_NAT,
@@ -400,6 +409,7 @@ proc sql;
       f.next_preLA,
       f.PHA_ATC_LIB, 
       f.PHA_ACT_QSN,
+	  f.PHA_FRM_LIB,
       f.PSP_SPE_COD,
       f.PSP_ACT_NAT,
       f.RGO_ASU_NAT,
@@ -463,6 +473,7 @@ proc sql;
       f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
       f.PHA_ACT_QSN,
+	  f.PHA_FRM_LIB,
       f.PSP_SPE_COD,
       f.PSP_ACT_NAT,
       f.RGO_ASU_NAT,
@@ -529,6 +540,7 @@ proc sql;
       f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
       f.PHA_ACT_QSN,
+	  f.PHA_FRM_LIB,
       f.PSP_SPE_COD,
       f.PSP_ACT_NAT,
       f.RGO_ASU_NAT,
@@ -596,6 +608,7 @@ proc sql;
       f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
       f.PHA_ACT_QSN,
+	  f.PHA_FRM_LIB,
       f.PSP_SPE_COD,
       f.PSP_ACT_NAT,
       f.RGO_ASU_NAT,
@@ -680,6 +693,7 @@ proc sql;
       f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
       f.PHA_ACT_QSN,
+	  f.PHA_FRM_LIB,
       f.PSP_SPE_COD,
       f.PSP_ACT_NAT,
       f.RGO_ASU_NAT,
