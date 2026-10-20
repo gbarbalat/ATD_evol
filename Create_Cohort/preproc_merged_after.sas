@@ -4,6 +4,11 @@ proc sql outobs=10;
    select distinct BEN_IDT_ANO, DT_FIRST_AD
    from sasdata1.prs_rx;
 quit;
+proc sql;
+   create table work.top10_ids as
+   select distinct BEN_IDT_ANO, DT_FIRST_AD
+   from sasdata1.prs_rx;
+quit;
 
 /* Step 2: Join back to prs_rx to get candidate antidepressant lines on or after DT_FIRST_AD */
 proc sql;
@@ -29,8 +34,8 @@ proc sql;
    from work.top10_ids as t
    inner join sasdata1.prs_rx as r
       on t.BEN_IDT_ANO = r.BEN_IDT_ANO
-   where r.EXE_SOI_DTD >= t.DT_FIRST_AD
-     and (
+   and r.EXE_SOI_DTD >= t.DT_FIRST_AD
+     where (
                     r.PHA_ATC_CLA like 'N05A%' /* antipsychotics - lithium */
                 /* or ref.PHA_ATC_CLA like 'N05B%' 
                  or ref.PHA_ATC_CLA like 'N05C%' anxiolytics, hypnotics */
@@ -57,29 +62,41 @@ data work.filtered_prs2;
 run;
 
 /* Step 3: Add next_exe_date using a universal correlated subquery */
+/* 1. Find the next dispensing date via a self-join on work.filtered_prs2 */
+proc sql;
+   create table work.next_dates as
+   select 
+      t1.BEN_IDT_ANO,
+      t1.EXE_SOI_DTD,
+      min(t2.EXE_SOI_DTD) as next_exe_date
+   from work.filtered_prs2 as t1
+   left join work.filtered_prs2 as t2
+      on t1.BEN_IDT_ANO = t2.BEN_IDT_ANO
+     and t2.EXE_SOI_DTD > t1.EXE_SOI_DTD
+   group by t1.BEN_IDT_ANO, t1.EXE_SOI_DTD;
+quit;
+
+/* 2. Merge back and apply the fallback logic */
 proc sql;
    create table work.filtered_prs3 as
    select 
       t1.*,
-      /* Finds the next dispensing date, or falls back to the earliest valid date */
       coalesce(
-         (select min(t2.EXE_SOI_DTD) 
-            from work.filtered_prs2 as t2 
-            where t2.BEN_IDT_ANO = t1.BEN_IDT_ANO 
-              and t2.EXE_SOI_DTD > t1.EXE_SOI_DTD),
+         n.next_exe_date,
          min(
             intnx('year', t1.DT_FIRST_AD, 1, 'same'), 
             datepart(t1.MAX_TRT_DTD), 
-            /* Treat 1600 sentinel/living death dates as missing so min() ignores them */
             case 
                when t1.BEN_DCD_DTE = . or year(datepart(t1.BEN_DCD_DTE)) < 1960 then . 
                else datepart(t1.BEN_DCD_DTE) 
             end
          )
-      ) as next_exe_date
-   from work.filtered_prs2 as t1;
+      ) as next_exe_date format=date9.
+   from work.filtered_prs2 as t1
+   left join work.next_dates as n
+      on t1.BEN_IDT_ANO = n.BEN_IDT_ANO
+     and t1.EXE_SOI_DTD = n.EXE_SOI_DTD;
 quit;
-
 
 /* Step 4: Apply date formats cleanly in a DATA step */
 data work.prs_intervals;
@@ -401,10 +418,10 @@ proc sql;
          when f.next_exe_date is null then 0
          else coalesce(sum(
             case 
-               when r.ssr_start <= f.next_exe_date 
-                and r.ssr_end >= f.EXE_SOI_DTD 
-               then min(f.next_exe_date, r.ssr_end) - max(f.EXE_SOI_DTD, r.ssr_start) + 1
-               else 0 
+               when r.ssr_start < f.next_exe_date 
+                and r.ssr_end > f.EXE_SOI_DTD 
+               then min(f.next_exe_date, r.ssr_end) - max(f.EXE_SOI_DTD, r.ssr_start) 
+               else -1 
             end
          ), 0)
       end as SSR_Length, 
@@ -412,7 +429,7 @@ proc sql;
 
    from work.prs_meds_visits_ald_orc as f
    left join (
-      select 
+      select distinct
          BEN_IDT_ANO as BEN_IDT_ANO,
          EXE_SOI_DTD as ssr_start,   
          EXE_SOI_DTF as ssr_end,
@@ -465,10 +482,10 @@ proc sql;
          when f.next_exe_date is null then 0
          else coalesce(sum(
             case 
-               when r.mco_start <= f.next_exe_date 
-                and r.mco_end >= f.EXE_SOI_DTD 
-               then min(f.next_exe_date, r.mco_end) - max(f.EXE_SOI_DTD, r.mco_start) + 1
-               else 0 
+               when r.mco_start < f.next_exe_date 
+                and r.mco_end > f.EXE_SOI_DTD 
+               then min(f.next_exe_date, r.mco_end) - max(f.EXE_SOI_DTD, r.mco_start) 
+               else -1 
             end
          ), 0)
       end as MCO_Length,
@@ -477,7 +494,7 @@ proc sql;
 
    from work.prs_meds_visits_ald_orc_ssr as f
    left join (
-      select 
+      select distinct
          BEN_IDT_ANO as BEN_IDT_ANO,
          EXE_SOI_DTD as mco_start,   
          EXE_SOI_DTF as mco_end,    
@@ -533,10 +550,10 @@ proc sql;
          when f.next_exe_date is null then 0
          else coalesce(sum(
             case 
-               when r.had_start <= f.next_exe_date 
-                and r.had_end >= f.EXE_SOI_DTD 
-               then min(f.next_exe_date, r.had_end) - max(f.EXE_SOI_DTD, r.had_start) + 1
-               else 0 
+               when r.had_start < f.next_exe_date 
+                and r.had_end > f.EXE_SOI_DTD 
+               then min(f.next_exe_date, r.had_end) - max(f.EXE_SOI_DTD, r.had_start) 
+               else -1 
             end
          ), 0)
       end as HAD_Length,
@@ -545,7 +562,7 @@ proc sql;
 
    from work.prs_meds_visits_ald_orc_ssr_mco as f
    left join (
-      select 
+      select distinct
          BEN_IDT_ANO as BEN_IDT_ANO,
          EXE_SOI_DTD as had_start,   
          EXE_SOI_DTF as had_end,
@@ -628,7 +645,7 @@ proc sql;
 
    from work.prs_ald_orc_ssr_mco_had_after as f
    left join (
-      select 
+      select distinct
          BEN_IDT_ANO as BEN_IDT_ANO,
          rip_start,   
          rip_end, 
