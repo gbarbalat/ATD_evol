@@ -146,7 +146,9 @@ proc sql;
       coalesce(
          max(case when ir.BEN_DCD_DTE ne '01JAN1600:00:00:00'dt then ir.BEN_DCD_DTE end),
          max(ir.BEN_DCD_DTE)
-      ) format=datetime20. as BEN_DCD_DTE
+      ) format=datetime20. as BEN_DCD_DTE,
+	  ir.BEN_NAI_ANN,
+	  ir.BEN_NAI_MOI
 	  
     from orauser.UNIQUE_BEN_IDT as u
     inner join oravue.IR_BEN_R as ir
