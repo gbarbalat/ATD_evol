@@ -28,6 +28,7 @@ proc sql;
 	  r.BEN_RES_DPT,
 	  r.BEN_RES_COM,
       r.EXE_SOI_DTD,
+	  r.PRE_PRE_DTD
       r.PHA_ATC_CLA,
       r.PHA_ATC_LIB, 
 	  r.PHA_ACT_QSN,
@@ -42,7 +43,7 @@ proc sql;
    from work.top10_ids as t
    inner join sasdata1.prs_rx as r
       on t.BEN_IDT_ANO = r.BEN_IDT_ANO
-   and r.EXE_SOI_DTD >= t.DT_FIRST_AD
+   and r.PRE_PRE_DT >= t.DT_FIRST_AD
      where (
                     r.PHA_ATC_CLA like 'N05A%' /* antipsychotics - lithium */
                 /* or ref.PHA_ATC_CLA like 'N05B%' 
@@ -55,7 +56,7 @@ proc sql;
 quit;
 
 proc sort data=work.filtered_prs nodup;
-   by BEN_IDT_ANO EXE_SOI_DTD;
+   by BEN_IDT_ANO PRE_PRE_DTD EXE_SOI_DTD;
 run;  
 
 data work.filtered_prs2;
@@ -64,24 +65,27 @@ data work.filtered_prs2;
    /* Extract pure dates from the datetime timestamps */
    DT_FIRST_AD = datepart(DT_FIRST_AD);
    EXE_SOI_DTD = datepart(EXE_SOI_DTD);
+   PRE_PRE_DTD = datepart(PRE_PRE_DTD);
    
    /* Apply standard date formatting */
-   format DT_FIRST_AD EXE_SOI_DTD DATE9.;
+   format DT_FIRST_AD EXE_SOI_DTD PRE_PRE_DTD DATE9.;
 run;
 
-/* Step 3: Add next_exe_date using a universal correlated subquery */
+/* Step 3: Add next_pre_date using a universal correlated subquery */
 /* 1. Find the next dispensing date via a self-join on work.filtered_prs2 */
 proc sql;
    create table work.next_dates as
    select 
       t1.BEN_IDT_ANO,
+	  t1.PRE_PRE_DTD,
       t1.EXE_SOI_DTD,
+      min(t2.PRE_PRE_DTD) as next_pre_date,
       min(t2.EXE_SOI_DTD) as next_exe_date
    from work.filtered_prs2 as t1
    left join work.filtered_prs2 as t2
       on t1.BEN_IDT_ANO = t2.BEN_IDT_ANO
-     and t2.EXE_SOI_DTD > t1.EXE_SOI_DTD
-   group by t1.BEN_IDT_ANO, t1.EXE_SOI_DTD;
+     and t2.PRE_PRE_DTD > t1.PRE_PRE_DTD
+   group by t1.BEN_IDT_ANO, t1.PRE_PRE_DTD;
 quit;
 
 /* 2. Merge back and apply the fallback logic */
@@ -90,7 +94,7 @@ proc sql;
    select 
       t1.*,
       coalesce(
-         n.next_exe_date,
+         n.next_pre_date,
          min(
             intnx('year', t1.DT_FIRST_AD, 1, 'same'), 
             datepart(t1.MAX_TRT_DTD), 
@@ -99,17 +103,17 @@ proc sql;
                else datepart(t1.BEN_DCD_DTE) 
             end
          )
-      ) as next_exe_date format=date9.
+      ) as next_pre_date format=date9.
    from work.filtered_prs2 as t1
    left join work.next_dates as n
       on t1.BEN_IDT_ANO = n.BEN_IDT_ANO
-     and t1.EXE_SOI_DTD = n.EXE_SOI_DTD;
+     and t1.PRE_PRE_DTD = n.PRE_PRE_DTD;
 quit;
 
 /* Step 4: Apply date formats cleanly in a DATA step */
 data work.prs_intervals;
    set work.filtered_prs3;
-   format next_exe_date DATE9.; /* You can also use YYMMDD10. if you prefer YYYY-MM-DD */
+   format next_pre_date DATE9.; /* You can also use YYMMDD10. if you prefer YYYY-MM-DD */
 run;
 
 
@@ -123,7 +127,8 @@ proc sql;
       f.BEN_RES_DPT,
       f.BEN_RES_COM,
       f.EXE_SOI_DTD,
-      f.next_exe_date,
+	  f.PRE_PRE_DTD,
+      f.next_pre_date,
       f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
       f.PHA_ACT_QSN,
@@ -143,14 +148,14 @@ proc sql;
    left join (
       select 
          BEN_IDT_ANO,
-         datepart(EXE_SOI_DTD) as exe_date,
+         datepart(PRE_PRE_DTD) as pre_date,
          case when PHA_ATC_CLA like 'N05B%' or PHA_ATC_CLA like 'N05C%' then 1 else 0 end as is_anx,
          case when not (PHA_ATC_CLA like 'N05B%' or PHA_ATC_CLA like 'N05C%') then 1 else 0 end as is_other
       from sasdata1.prs_rx
    ) as r
       on f.BEN_IDT_ANO = r.BEN_IDT_ANO
-     and r.exe_date > f.EXE_SOI_DTD
-     and (f.next_exe_date is null or r.exe_date < f.next_exe_date)
+     and r.pre_date > f.PRE_PRE_DTD
+     and (f.next_pre_date is null or r.pre_date < f.next_pre_date)
      
    group by 
       f.BEN_IDT_ANO,
@@ -158,8 +163,8 @@ proc sql;
       f.BEN_AMA_COD,
       f.BEN_RES_DPT,
       f.BEN_RES_COM,
-      f.EXE_SOI_DTD,
-      f.next_exe_date,
+      f.PRE_PRE_DTD,
+      f.next_pre_date,
       f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
       f.PHA_ACT_QSN,
@@ -172,7 +177,7 @@ quit;
 
 
 
-/* Now count visits between EXE_SOI_DTD and next_exe_date */
+/* Now count visits between PRE_PRE_DTD and next_pre_date */
 proc sql;
    create table work.prs_meds_visits as
    select 
@@ -181,8 +186,8 @@ proc sql;
       f.BEN_AMA_COD,
       f.BEN_RES_DPT,
       f.BEN_RES_COM,
-      f.EXE_SOI_DTD,
-      f.next_exe_date,
+      f.PRE_PRE_DTD,
+      f.next_pre_date,
       f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
       f.PHA_ACT_QSN,
@@ -214,9 +219,9 @@ proc sql;
       select 
          BEN_IDT_ANO,
          datepart(EXE_SOI_DTD) as exe_date,
-		 case when PSE_SPE_COD=1 then 1 else 0 end as is_GP,
-		 case when PSE_SPE_COD=33 then 1 else 0 end as is_Psych,
-         case when PSE_SPE_COD not in (0, 1,33) then 1 else 0 end as is_OtherMed,
+		 case when PSE_SPE_COD=1 or PSE_SPE_COD=22 or PSE_SPE_COD=23 then 1 else 0 end as is_GP,
+		 case when PSE_SPE_COD=33 or PSE_SPE_COD=17 or PSE_SPE_COD=75  then 1 else 0 end as is_Psych,
+         case when PSE_SPE_COD not in (0,1,22,23,17,33,75) then 1 else 0 end as is_OtherMed,
 		 case when PSE_SPE_COD=0 then 1 else 0 end as is_SeenNonMed,
 
          case when RGO_ASU_NAT in (40,80) then 1 else 0 end as is_ATMPInv,
@@ -226,8 +231,8 @@ proc sql;
 		 from sasdata1.prs_au
    ) as r
       on f.BEN_IDT_ANO = r.BEN_IDT_ANO
-     and r.exe_date > f.EXE_SOI_DTD
-     and (f.next_exe_date is null or r.exe_date < f.next_exe_date)
+     and r.exe_date > f.PRE_PRE_DTD
+     and (f.next_pre_date is null or r.exe_date < f.next_pre_date)
      
    group by 
       f.BEN_IDT_ANO,
@@ -235,8 +240,8 @@ proc sql;
       f.BEN_AMA_COD,
       f.BEN_RES_DPT,
       f.BEN_RES_COM,
-      f.EXE_SOI_DTD,
-      f.next_exe_date,
+      f.PRE_PRE_DTD,
+      f.next_pre_date,
       f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
       f.PHA_ACT_QSN,
@@ -262,8 +267,8 @@ proc sql;
       f.BEN_AMA_COD,
       f.BEN_RES_DPT,
       f.BEN_RES_COM,
-      f.EXE_SOI_DTD,
-      f.next_exe_date,
+      f.PRE_PRE_DTD,
+      f.next_pre_date,
       f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
       f.PHA_ACT_QSN,
@@ -300,8 +305,8 @@ proc sql;
       from sasdata1.ald
    ) as r
       on f.BEN_IDT_ANO = r.BEN_IDT_ANO
-	 and r.end_date > f.EXE_SOI_DTD
-     and (f.next_exe_date is null or r.exe_date < f.next_exe_date)
+	 and r.end_date > f.PRE_PRE_DTD
+     and (f.next_pre_date is null or r.exe_date < f.next_pre_date)
      
    group by 
       f.BEN_IDT_ANO,
@@ -309,8 +314,8 @@ proc sql;
       f.BEN_AMA_COD,
       f.BEN_RES_DPT,
       f.BEN_RES_COM,
-      f.EXE_SOI_DTD,
-      f.next_exe_date,
+      f.PRE_PRE_DTD,
+      f.next_pre_date,
       f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
       f.PHA_ACT_QSN,
@@ -347,8 +352,8 @@ proc sql;
       f.BEN_AMA_COD,
       f.BEN_RES_DPT,
       f.BEN_RES_COM,
-      f.EXE_SOI_DTD,
-      f.next_exe_date,
+      f.PRE_PRE_DTD,
+      f.next_pre_date,
       f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
       f.PHA_ACT_QSN,
@@ -382,8 +387,8 @@ proc sql;
       from sasdata1.orc
    ) as r
       on f.BEN_IDT_ANO = r.BEN_IDT_ANO
-     and r.end_date > f.EXE_SOI_DTD
-     and (f.next_exe_date is null or r.exe_date < f.next_exe_date)
+     and r.end_date > f.PRE_PRE_DTD
+     and (f.next_pre_date is null or r.exe_date < f.next_pre_date)
      
    group by 
       f.BEN_IDT_ANO,
@@ -391,9 +396,8 @@ proc sql;
       f.BEN_AMA_COD,
       f.BEN_RES_DPT,
       f.BEN_RES_COM,
-      f.EXE_SOI_DTD,
-      f.next_exe_date,
-      f.PHA_ATC_CLA,
+      f.PRE_PRE_DTD,
+      f.next_preLA,
       f.PHA_ATC_LIB, 
       f.PHA_ACT_QSN,
       f.PSP_SPE_COD,
@@ -423,12 +427,12 @@ proc sql;
       
       /* Safely calculate SSR length, forcing 0 if missing interval or no match */
       case 
-         when f.next_exe_date is null then 0
+         when f.next_pre_date is null then 0
          else coalesce(sum(
             case 
-               when r.ssr_start < f.next_exe_date 
-                and r.ssr_end > f.EXE_SOI_DTD 
-               then min(f.next_exe_date, r.ssr_end) - max(f.EXE_SOI_DTD, r.ssr_start) 
+               when r.ssr_start < f.next_pre_date 
+                and r.ssr_end > f.PRE_PRE_DTD 
+               then min(f.next_pre_date, r.ssr_end) - max(f.PRE_PRE_DTD, r.ssr_start) 
                else -1 
             end
          ), 0)
@@ -445,8 +449,8 @@ proc sql;
       from sasdata1.ssr
    ) as r
       on f.BEN_IDT_ANO = r.BEN_IDT_ANO
-     and r.ssr_start < f.next_exe_date
-     and r.ssr_end > f.EXE_SOI_DTD
+     and r.ssr_start < f.next_pre_date
+     and r.ssr_end > f.PRE_PRE_DTD
      
    group by 
       f.BEN_IDT_ANO,
@@ -454,8 +458,8 @@ proc sql;
       f.BEN_AMA_COD,
       f.BEN_RES_DPT,
       f.BEN_RES_COM,
-      f.EXE_SOI_DTD,
-      f.next_exe_date,
+      f.PRE_PRE_DTD,
+      f.next_pre_date,
       f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
       f.PHA_ACT_QSN,
@@ -487,12 +491,12 @@ proc sql;
       
       /* Safely calculate MCO length, forcing 0 if missing interval or no match */
       case 
-         when f.next_exe_date is null then 0
+         when f.next_pre_date is null then 0
          else coalesce(sum(
             case 
-               when r.mco_start < f.next_exe_date 
-                and r.mco_end > f.EXE_SOI_DTD 
-               then min(f.next_exe_date, r.mco_end) - max(f.EXE_SOI_DTD, r.mco_start) 
+               when r.mco_start < f.next_pre_date 
+                and r.mco_end > f.PRE_PRE_DTD 
+               then min(f.next_pre_date, r.mco_end) - max(f.PRE_PRE_DTD, r.mco_start) 
                else -1 
             end
          ), 0)
@@ -511,8 +515,8 @@ proc sql;
       from sasdata1.mco
    ) as r
       on f.BEN_IDT_ANO = r.BEN_IDT_ANO
-     and r.mco_start < f.next_exe_date
-     and r.mco_end > f.EXE_SOI_DTD
+     and r.mco_start < f.next_pre_date
+     and r.mco_end > f.PRE_PRE_DTD
      
    group by 
       f.BEN_IDT_ANO,
@@ -520,8 +524,8 @@ proc sql;
       f.BEN_AMA_COD,
       f.BEN_RES_DPT,
       f.BEN_RES_COM,
-      f.EXE_SOI_DTD,
-      f.next_exe_date,
+      f.PRE_PRE_DTD,
+      f.next_pre_date,
       f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
       f.PHA_ACT_QSN,
@@ -555,12 +559,12 @@ proc sql;
       
       /* Safely calculate HAD length, forcing 0 if missing interval or no match */
       case 
-         when f.next_exe_date is null then 0
+         when f.next_pre_date is null then 0
          else coalesce(sum(
             case 
-               when r.had_start < f.next_exe_date 
-                and r.had_end > f.EXE_SOI_DTD 
-               then min(f.next_exe_date, r.had_end) - max(f.EXE_SOI_DTD, r.had_start) 
+               when r.had_start < f.next_pre_date 
+                and r.had_end > f.PRE_PRE_DTD 
+               then min(f.next_pre_date, r.had_end) - max(f.PRE_PRE_DTD, r.had_start) 
                else -1 
             end
          ), 0)
@@ -578,8 +582,8 @@ proc sql;
       from sasdata1.had
    ) as r
       on f.BEN_IDT_ANO = r.BEN_IDT_ANO
-     and r.had_start < f.next_exe_date
-     and r.had_end > f.EXE_SOI_DTD
+     and r.had_start < f.next_pre_date
+     and r.had_end > f.PRE_PRE_DTD
      
    group by 
       f.BEN_IDT_ANO,
@@ -587,8 +591,8 @@ proc sql;
       f.BEN_AMA_COD,
       f.BEN_RES_DPT,
       f.BEN_RES_COM,
-      f.EXE_SOI_DTD,
-      f.next_exe_date,
+      f.PRE_PRE_DTD,
+      f.next_pre_date,
       f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
       f.PHA_ACT_QSN,
@@ -623,13 +627,13 @@ proc sql;
       
  /* RIP Length for FOR_ACT starting with '0' */
       case 
-         when f.next_exe_date is null then 0
+         when f.next_pre_date is null then 0
          else coalesce(sum(
             case 
-               when r.rip_start < f.next_exe_date 
-                and r.rip_end > f.EXE_SOI_DTD 
+               when r.rip_start < f.next_pre_date 
+                and r.rip_end > f.PRE_PRE_DTD 
                 and r.FOR_ACT like '0%' 
-               then min(f.next_exe_date, r.rip_end) - max(f.EXE_SOI_DTD, r.rip_start)  /*+ 1 */
+               then min(f.next_pre_date, r.rip_end) - max(f.PRE_PRE_DTD, r.rip_start)  /*+ 1 */
                else -1 
             end
          ), 0)
@@ -637,13 +641,13 @@ proc sql;
 
       /* RIP Length for FOR_ACT starting with '1' */
       case 
-         when f.next_exe_date is null then 0
+         when f.next_pre_date is null then 0
          else coalesce(sum(
             case 
-               when r.rip_start < f.next_exe_date 
-                and r.rip_end > f.EXE_SOI_DTD 
+               when r.rip_start < f.next_pre_date 
+                and r.rip_end > f.PRE_PRE_DTD 
                 and r.FOR_ACT like '2%' 
-               then min(f.next_exe_date, r.rip_end) - max(f.EXE_SOI_DTD, r.rip_start) /*+ 1 */
+               then min(f.next_pre_date, r.rip_end) - max(f.PRE_PRE_DTD, r.rip_start) /*+ 1 */
                else -1 
             end
          ), 0)
@@ -662,8 +666,8 @@ proc sql;
       from sasdata1.rip
    ) as r
       on f.BEN_IDT_ANO = r.BEN_IDT_ANO
-     and r.rip_start < f.next_exe_date
-     and r.rip_end > f.EXE_SOI_DTD
+     and r.rip_start < f.next_pre_date
+     and r.rip_end > f.PRE_PRE_DTD
      
    group by 
       f.BEN_IDT_ANO,
@@ -671,8 +675,8 @@ proc sql;
       f.BEN_AMA_COD,
       f.BEN_RES_DPT,
       f.BEN_RES_COM,
-      f.EXE_SOI_DTD,
-      f.next_exe_date,
+      f.PRE_PRE_DTD,
+      f.next_pre_date,
       f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
       f.PHA_ACT_QSN,
@@ -729,7 +733,7 @@ proc sql;
       from (select distinct BEN_IDT_ANO, DT_FIRST_AD from work.prs_intervals) as p
       inner join sasdata1.prs_rx as r
          on p.BEN_IDT_ANO = r.BEN_IDT_ANO
-        and datepart(r.EXE_SOI_DTD) < p.DT_FIRST_AD
+        and datepart(r.PRE_PRE_DTD) < p.DT_FIRST_AD
       group by p.BEN_IDT_ANO
    ) as r
       on f.BEN_IDT_ANO = r.BEN_IDT_ANO;
@@ -1051,29 +1055,29 @@ quit;
 === CHUNK 3 =========
 == INCLUDE OTHER ====
 ==================== */
-/* add refill_Nb column at each different EXE_SOI_DTD per BEN_IDT_ANO */
+/* add refill_Nb column at each different PRE_PRE_DTD per BEN_IDT_ANO */
 /* 1. Ensure data is sorted by patient and date */
 proc sort data=work.PRS_ALD_ORC_HOSP_AFTER;
-   by BEN_IDT_ANO EXE_SOI_DTD;
+   by BEN_IDT_ANO PRE_PRE_DTD;
 run;
 
 /* 2. Generate the incrementing refill counter */
 data work.PRS_ALD_ORC_HOSP_AFTER;
    set work.PRS_ALD_ORC_HOSP_AFTER;
-   by BEN_IDT_ANO EXE_SOI_DTD;
+   by BEN_IDT_ANO PRE_PRE_DTD;
    retain refill_Nb;
    
    if first.BEN_IDT_ANO then refill_Nb = 1;
-   else if first.EXE_SOI_DTD then refill_Nb + 1;
+   else if first.PRE_PRE_DTD then refill_Nb + 1;
 run;
 
 
-/* now add season-year column from EXE_SOI_DTD which is data 9. */
+/* now add season-year column from PRE_PRE_DTD which is data 9. */
 data work.PRS_ALD_ORC_HOSP_AFTER;
    set work.PRS_ALD_ORC_HOSP_AFTER;
    
    /* Extract date part and pull month/year components */
-   local_date = EXE_SOI_DTD;
+   local_date = PRE_PRE_DTD;
    m = month(local_date);
    y = year(local_date);
    
@@ -1157,8 +1161,8 @@ proc sql;
    create table work.density_agg as
    select 
       put(COM, $5.) as COM,
-      sum(case when SPE = '01' then NB_PS else 0 end) as Nb_GP,
-      sum(case when SPE = '33' then NB_PS else 0 end) as Nb_Psych
+      sum(case when SPE = '01' or SPE='22' or SPE='23' then NB_PS else 0 end) as Nb_GP,
+      sum(case when SPE = '33' or SPE='17' or SPE='75' then NB_PS else 0 end) as Nb_Psych
    from rfcommun.denb_ps_commune_01jan2022
    group by calculated COM;
 
@@ -1176,25 +1180,25 @@ quit;
 
 /* create PRS_ALD_ORC_HOSP_GEO_PRESC_AFTER from PRS_ALD_ORC_HOSP_GEO_AFTER where you
 create First_Prescriber for each BEN_IDT_ANO which equals the PSP_SPE_COD where 
-EXE_SOI_DTD = DT_FIRST_AD.
+PRE_PRE_DTD = DT_FIRST_AD.
 Create Adm_Psy_Cur where for each BEN_IDT_ANO, if RIP_0_Length or RIP_2_Length is >=0,
 then you put 1 in the column and it gets repeated till the end.
 Create Adm_Oth_Cur where for each BEN_IDT_ANO, if MCO_Length or SSR_Length or HAD_Length is > 0,
 then you put 1 in the column and it gets repeated till the end.
-Apply the following cumsum principle: for each BEN_IDT_ANO and each EXE_SOI_DTD, if Value is Yes, 
+Apply the following cumsum principle: for each BEN_IDT_ANO and each PRE_PRE_DTD, if Value is Yes, 
 the value of the created column is incremented by 1 (from 0) to
 HasAnx = Yes (create CumulAnx)
 HasOtherMeds=Yes (create CumulOtherMeds)
 SeenPsych=Yes (CumulPsych) */
 /* 1. Ensure data is properly sorted by patient and date */
 proc sort data=work.PRS_ALD_ORC_HOSP_GEO_AFTER;
-   by BEN_IDT_ANO EXE_SOI_DTD;
+   by BEN_IDT_ANO PRE_PRE_DTD;
 run;
 
 /* 2. Build prs_ald_orc_hosp_presc_after with state flags and cumulative counters */
 data work.PRS_ALD_ORC_HOSP_GEO_PRESC_AFTER;
    set work.PRS_ALD_ORC_HOSP_GEO_AFTER;
-   by BEN_IDT_ANO EXE_SOI_DTD;
+   by BEN_IDT_ANO PRE_PRE_DTD;
    
    retain First_Prescriber Adm_Psy_Cur Adm_Oth_Cur CumulAnx CumulOtherMeds CumulPsych Lead_Prescriber _prev_psp;
    
@@ -1213,7 +1217,7 @@ data work.PRS_ALD_ORC_HOSP_GEO_PRESC_AFTER;
    _prev_psp = PSP_SPE_COD;
    
    /* Capture the specialty code of the prescriber at the first admission date */
-   if EXE_SOI_DTD = DT_FIRST_AD and missing(First_Prescriber) then 
+   if PRE_PRE_DTD = DT_FIRST_AD and missing(First_Prescriber) then 
       First_Prescriber = PSP_SPE_COD;
       
    /* Psychiatric admission flag (retained as 1 once triggered) */
@@ -1241,7 +1245,7 @@ run;
 ============================ */
 /* Remove duplicate rows based on patient, date, and drug label */
 proc sort data=work.prs_ald_orc_hosp_crto_before nodupkey out=work.cv_before;
-   by BEN_IDT_ANO EXE_SOI_DTD PHA_ATC_LIB;
+   by BEN_IDT_ANO PRE_PRE_DTD PHA_ATC_LIB;
 run;
 
 data work.cv_before;
@@ -1253,7 +1257,7 @@ run;
 
 
 proc sort data=work.PRS_ALD_ORC_HOSP_GEO_PRESC_AFTER nodupkey out=work.cv_after;
-   by BEN_IDT_ANO EXE_SOI_DTD PHA_ATC_LIB;
+   by BEN_IDT_ANO PRE_PRE_DTD PHA_ATC_LIB;
 run;
 
 /* give BEN_DCD_DTE and MAX_TRT_DTD to cv_after by BEN_IDT_ANO */
@@ -1285,21 +1289,21 @@ data work.cv_after;
 run;
 
 /* Aggregate PHA_ATC_LIB into comma-separated psy_meds and transform dates */
-/* also add an event column where for each BEN_IDT_ANO and EXE_SOI_DTD,
+/* also add an event column where for each BEN_IDT_ANO and PRE_PRE_DTD,
 the value takes SSRI if the values of PHA_ATC_CLA all start with N06AB; 
 ATD_OTH if the values start by N06A but do not include N06AB; 
 SWI_CLA if any of the values of PHA_ATC_CLA does not start by N06A; 
-DEATH  if  next_exe_date = BEN_DCD_DTE; 
-CENS if next_exe_date=MAX_TRT_DTD*/
+DEATH  if  next_pre_date = BEN_DCD_DTE; 
+CENS if next_pre_date=MAX_TRT_DTD*/
 data work.cv_events_after;
    length psy_meds $ 500 event $ 15;
    
    /* First pass: Concatenate PHA_ATC_LIB and evaluate ATC classification flags per group */
    do while(1);
       set work.cv_after;
-      by BEN_IDT_ANO EXE_SOI_DTD;
+      by BEN_IDT_ANO PRE_PRE_DTD;
       
-      if first.EXE_SOI_DTD then do;
+      if first.PRE_PRE_DTD then do;
          psy_meds = PHA_ATC_LIB;
          all_n06ab = 1;
          all_n06a = 1;
@@ -1321,32 +1325,32 @@ data work.cv_events_after;
          all_n06a = 0;
       end;
       
-      if last.EXE_SOI_DTD then leave;
+      if last.PRE_PRE_DTD then leave;
    end;
    
    /* Second pass: Output rows, compute relative times, and assign the event type */
    do while(1);
       set work.cv_after;
-      by BEN_IDT_ANO EXE_SOI_DTD;
+      by BEN_IDT_ANO PRE_PRE_DTD;
       
       /* Transform dates into relative time (in days) from dt_first_ad */
-      start = intck('day', dt_first_ad, EXE_SOI_DTD);
-      stop  = intck('day', dt_first_ad, next_exe_date);
+      start = intck('day', dt_first_ad, PRE_PRE_DTD);
+      stop  = intck('day', dt_first_ad, next_pre_date);
       
       /* Event classification logic */
-      if next_exe_date = BEN_DCD_DTE then event = 'DEATH';
-      else if next_exe_date = MAX_TRT_DTD then event = 'CENS';
+      if next_pre_date = BEN_DCD_DTE then event = 'DEATH';
+      else if next_pre_date = MAX_TRT_DTD then event = 'CENS';
       if all_n06ab = 1 then event = 'SSRI';
       else if all_n06a = 1 and all_n06ab = 0 then event = 'ATD_OTH';
       else event = 'SWI_CLA';
       
       output;
-      if last.EXE_SOI_DTD then leave;
+      if last.PRE_PRE_DTD then leave;
    end;
 run;
 
 proc sort data=work.cv_events_after nodupkey out=work.cv_events_after;
-   by BEN_IDT_ANO EXE_SOI_DTD psy_meds;
+   by BEN_IDT_ANO PRE_PRE_DTD psy_meds;
 run;
 
 /* now create from work.cv_events_after where for each BEN_IDT_ANO, 
@@ -1356,28 +1360,28 @@ proc sort data=work.cv_events_after;
    by BEN_IDT_ANO start;
 run;
 
-/* 2. Truncate follow-up after the SWI_CLA event */
+/* NOT DONE 2. Truncate follow-up after the SWI_CLA event 
 data work.cv_events_rd_after;
    set work.cv_events_after;
    by BEN_IDT_ANO;
    
    retain stop_patient;
    
-   /* Reset the stop flag for each new patient */
+   Reset the stop flag for each new patient
    if first.BEN_IDT_ANO then stop_patient = 0;
    
-   /* If a previous row triggered SWI_CLA, drop this and all subsequent rows */
+   If a previous row triggered SWI_CLA, drop this and all subsequent rows
    if stop_patient then delete;
    
    output;
    
-   /* If the current row is SWI_CLA, flag to stop processing further rows for this patient */
+   If the current row is SWI_CLA, flag to stop processing further rows for this patient 
    if event = 'SWI_CLA' then stop_patient = 1;
-run;
+run;*/
 
 
-/* now merge cv_after and cv_events_rd_after */
-/* 1. Dynamically find columns in cv_before that are NOT in cv_events_rd_after */
+/* now merge cv_before and cv_events_rd_after */
+/* 1. Dynamically find columns in cv_before that are NOT in cv_events_[rd]_after */
 proc sql noprint;
    select distinct upcase(a.name) into :cols_to_pull separated by ', b.'
    from dictionary.columns as a
@@ -1385,7 +1389,7 @@ proc sql noprint;
      and upcase(a.name) not in (
         select upcase(b.name) 
         from dictionary.columns as b 
-        where b.libname = 'WORK' and b.memname = 'CV_EVENTS_RD_AFTER'
+        where b.libname = 'WORK' and b.memname = 'CV_EVENTS_AFTER' /* RD_ */
      )
      and upcase(a.name) ne 'BEN_IDT_ANO'; /* Exclude the join key itself */
 quit;
@@ -1398,7 +1402,7 @@ proc sort data=work.cv_before nodupkey out=work.cv_before_unique;
    by BEN_IDT_ANO;
 run;
 
-/* 3. Left join cv_events_rd_after with only the missing columns */
+/* 3. Left join cv_events_[rd]_after with only the missing columns */
 proc sql;
    create table work.merged_ as
    select 
@@ -1407,12 +1411,12 @@ proc sql;
       %if &cols_to_pull ne %str() %then %do;
          , b.&cols_to_pull.
       %end;
-   from work.cv_events_rd_after as a
+   from work.cv_events_after as a /* RD_ */
    left join work.cv_before_unique as b
       on a.BEN_IDT_ANO = b.BEN_IDT_ANO;
 quit;
 proc sort data=work.merged_ out=work.merged_;
-   by BEN_IDT_ANO exe_soi_dtd;
+   by BEN_IDT_ANO PRE_PRE_DTD;
 run;
 proc copy in=work out=sasdata1;
    select merged_;
