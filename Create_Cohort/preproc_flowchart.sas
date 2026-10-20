@@ -21,6 +21,8 @@ proc sql;
    from sasdata1.FC1_2
    where upcase(PHA_ATC_CLA) like 'N06AB%'
      and EXE_SOI_DTD >= &cutoff_start.
+     and BEN_AMA_COD >= 18
+     and BEN_AMA_COD <=39
    group by BEN_IDT_ANO;
 quit;
 
