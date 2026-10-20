@@ -1411,7 +1411,9 @@ proc sql;
    left join work.cv_before_unique as b
       on a.BEN_IDT_ANO = b.BEN_IDT_ANO;
 quit;
-
+proc sort data=work.merged_ out=work.merged_;
+   by BEN_IDT_ANO exe_soi_dtd;
+run;
 proc copy in=work out=sasdata1;
    select merged_;
 run;
