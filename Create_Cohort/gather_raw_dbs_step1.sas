@@ -152,6 +152,9 @@ proc sql;
 	  
     from orauser.UNIQUE_BEN_IDT as u
     inner join oravue.IR_BEN_R as ir
-        on u.BEN_IDT_ANO = ir.BEN_IDT_ANO;
+        on u.BEN_IDT_ANO = ir.BEN_IDT_ANO
+
+    group by 
+      ir.BEN_IDT_ANO;
 quit;
 %m_stats_table(nom_table=FC1_1)
