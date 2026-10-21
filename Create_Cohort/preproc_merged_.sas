@@ -6,16 +6,35 @@ update: change where to join to increase computational efficiency
 === CHUNK 1 ===
 === _after ====
 ============= */
+/* Step 0: eliminate PHA_ACT_QSN negative */
+/* Automatically get all column names except PHA_ACT_QSN */
+proc sql noprint;
+   select name into :col_list separated by ', '
+   from dictionary.columns
+   where libname = 'SASDATA1' 
+     and memname = 'PRS_RX' 
+     and upcase(name) ne 'PHA_ACT_QSN';
+quit;
+
+/* Group, net out quantities using a unique alias, and drop zeros */
+proc sql;
+   create table work.pres_netted as
+   select &col_list., sum(PHA_ACT_QSN) as net_qsn
+   from sasdata1.prs_rx
+   group by BEN_IDT_ANO, EXE_SOI_DTD, PRE_PRE_DTD, PHA_PRS_C13
+   having calculated net_qsn ne 0;
+quit;
+
 /* Step 1: Extract the first 10 distinct beneficiaries and their DT_FIRST_AD */
 proc sql outobs=10;
    create table work.top10_ids as
    select distinct BEN_IDT_ANO, DT_FIRST_AD
-   from sasdata1.prs_rx;
+   from work.pres_netted;
 quit;
 proc sql;
    create table work.top10_ids as
    select distinct BEN_IDT_ANO, DT_FIRST_AD
-   from sasdata1.prs_rx;
+   from work.pres_netted;
 quit;
 
 /* Step 2: Join back to prs_rx to get candidate Rx lines on or after DT_FIRST_AD */
@@ -30,7 +49,7 @@ proc sql;
       r.EXE_SOI_DTD,
       r.PHA_ATC_CLA,
       r.PHA_ATC_LIB, 
-	  r.PHA_ACT_QSN,
+	  r.net_qsn,
 	  r.PHA_FRM_LIB,
 	  r.PSP_SPE_COD,
 	  r.PSP_ACT_NAT,
@@ -41,7 +60,7 @@ proc sql;
 	  r.MAX_TRT_DTD
 
    from work.top10_ids as t
-   inner join sasdata1.prs_rx as r
+   inner join work.pres_netted as r
       on t.BEN_IDT_ANO = r.BEN_IDT_ANO
    and r.EXE_SOI_DTD >= t.DT_FIRST_AD
      where (
@@ -127,7 +146,7 @@ proc sql;
       f.next_exe_date,
       f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
-      f.PHA_ACT_QSN,
+      f.net_qsn,
 	  f.PHA_FRM_LIB,
       f.PSP_SPE_COD,
       f.PSP_ACT_NAT,
@@ -148,7 +167,7 @@ proc sql;
          datepart(EXE_SOI_DTD) as exe_date,
          case when PHA_ATC_CLA like 'N05B%' or PHA_ATC_CLA like 'N05C%'  or PHA_ATC_CLA like 'N05AA%' then 1 else 0 end as is_anx,
          case when not (PHA_ATC_CLA like 'N05B%' or PHA_ATC_CLA like 'N05C%') then 1 else 0 end as is_other
-      from sasdata1.prs_rx
+      from work.pres_netted
    ) as r
       on f.BEN_IDT_ANO = r.BEN_IDT_ANO
      and r.exe_date > f.EXE_SOI_DTD
@@ -164,7 +183,7 @@ proc sql;
       f.next_exe_date,
       f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
-      f.PHA_ACT_QSN,
+      f.net_qsn,
 	  f.PHA_FRM_LIB,
       f.PSP_SPE_COD,
       f.PSP_ACT_NAT,
@@ -188,7 +207,7 @@ proc sql;
       f.next_exe_date,
       f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
-      f.PHA_ACT_QSN,	  
+      f.net_qsn,	  
 	  f.PHA_FRM_LIB,
 
       f.PSP_SPE_COD,
@@ -244,7 +263,7 @@ proc sql;
       f.next_exe_date,
       f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
-      f.PHA_ACT_QSN,
+      f.net_qsn,
 	  f.PHA_FRM_LIB,
       f.PSP_SPE_COD,
       f.PSP_ACT_NAT,
@@ -272,7 +291,7 @@ proc sql;
       f.next_exe_date,
       f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
-      f.PHA_ACT_QSN,
+      f.net_qsn,
 	  f.PHA_FRM_LIB,
       f.PSP_SPE_COD,
       f.PSP_ACT_NAT,
@@ -320,7 +339,7 @@ proc sql;
       f.next_exe_date,
       f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
-      f.PHA_ACT_QSN,
+      f.net_qsn,
 	  f.PHA_FRM_LIB,
       f.PSP_SPE_COD,
       f.PSP_ACT_NAT,
@@ -359,7 +378,7 @@ proc sql;
       f.next_exe_date,
       f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
-      f.PHA_ACT_QSN,
+      f.net_qsn,
 	  f.PHA_FRM_LIB,
       f.PSP_SPE_COD,
       f.PSP_ACT_NAT,
@@ -404,7 +423,7 @@ proc sql;
       f.next_exe_date,
 	  f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
-      f.PHA_ACT_QSN,
+      f.net_qsn,
 	  f.PHA_FRM_LIB,
       f.PSP_SPE_COD,
       f.PSP_ACT_NAT,
@@ -468,7 +487,7 @@ proc sql;
       f.next_exe_date,
       f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
-      f.PHA_ACT_QSN,
+      f.net_qsn,
 	  f.PHA_FRM_LIB,
       f.PSP_SPE_COD,
       f.PSP_ACT_NAT,
@@ -535,7 +554,7 @@ proc sql;
       f.next_exe_date,
       f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
-      f.PHA_ACT_QSN,
+      f.net_qsn,
 	  f.PHA_FRM_LIB,
       f.PSP_SPE_COD,
       f.PSP_ACT_NAT,
@@ -603,7 +622,7 @@ proc sql;
       f.next_exe_date,
       f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
-      f.PHA_ACT_QSN,
+      f.net_qsn,
 	  f.PHA_FRM_LIB,
       f.PSP_SPE_COD,
       f.PSP_ACT_NAT,
@@ -688,7 +707,7 @@ proc sql;
       f.next_exe_date,
       f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
-      f.PHA_ACT_QSN,
+      f.net_qsn,
 	  f.PHA_FRM_LIB,
       f.PSP_SPE_COD,
       f.PSP_ACT_NAT,
@@ -741,7 +760,7 @@ proc sql;
          max(case when r.PHA_ATC_CLA like 'N05B%' or r.PHA_ATC_CLA like 'N05C%' then 1 else 0 end) as has_anx,
          max(case when not (r.PHA_ATC_CLA like 'N05B%' or r.PHA_ATC_CLA like 'N05C%') then 1 else 0 end) as has_other
       from (select distinct BEN_IDT_ANO, DT_FIRST_AD from work.prs_intervals) as p
-      inner join sasdata1.prs_rx as r
+      inner join work.pres_netted as r
          on p.BEN_IDT_ANO = r.BEN_IDT_ANO
         and datepart(r.EXE_SOI_DTD) < p.DT_FIRST_AD
       group by p.BEN_IDT_ANO
@@ -1303,8 +1322,7 @@ run;
 the value takes SSRI if the values of PHA_ATC_CLA all start with N06AB; 
 ATD_OTH if the values start by N06A but do not include N06AB; 
 SWI_CLA if any of the values of PHA_ATC_CLA does not start by N06A; 
-DEATH  if  next_exe_date = BEN_DCD_DTE; 
-CENS if next_exe_date=MAX_TRT_DTD*/
+*/
 data work.cv_events_after;
    length psy_meds $ 500 event $ 15;
    
@@ -1348,8 +1366,6 @@ data work.cv_events_after;
       stop  = intck('day', dt_first_ad, next_exe_date);
       
       /* Event classification logic */
-      if next_exe_date = BEN_DCD_DTE then event = 'DEATH';
-      else if next_exe_date = MAX_TRT_DTD then event = 'CENS';
       if all_n06ab = 1 then event = 'SSRI';
       else if all_n06a = 1 and all_n06ab = 0 then event = 'ATD_OTH';
       else event = 'SWI_CLA';
