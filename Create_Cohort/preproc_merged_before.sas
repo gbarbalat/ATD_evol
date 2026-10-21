@@ -249,24 +249,39 @@ quit;
 
 
 /* check CRTO databses and create column Prev_Psy_Dx_Rx (No, Latest Year) + Prev_Psy_Adm (No, Latest Year) */
+/* 1. Extract unique patients and their first admission year */
+proc sql noprint;
+   create table work.patient_index as
+   select distinct BEN_IDT_ANO, DT_FIRST_AD
+   from work.prs_ald_orc_hosp_before;
+quit;
+
+/* 2. Pre-aggregate the max prior psychiatric year per patient */
+proc sql;
+   create table work.carto_filtered as
+   select 
+      p.BEN_IDT_ANO,
+      put(max(c.year), 4.) as max_psy_year
+   from work.patient_index as p
+   inner join sasdata1.carto_dep as c
+      on p.BEN_IDT_ANO = c.BEN_IDT_ANO
+   where (c.DEP_DGF_PSY_BSE > 0 or c.DEP_OQN_PSY_BSE > 0)
+     and c.year < year(p.DT_FIRST_AD)
+   group by p.BEN_IDT_ANO;
+quit;
+
+/* 3. Left join the result back and assign 'No' as the default */
 proc sql;
    create table work.prs_ald_orc_hosp_crto_DEP_before as
    select 
       f.*,
-      
-      /* Find latest prior psychiatric year, or default to 'No' */
-      coalesce(
-         (select put(max(c.year), 4.) 
-          from sasdata1.carto_dep as c 
-          where c.BEN_IDT_ANO = f.BEN_IDT_ANO 
-            and (c.DEP_DGF_PSY_BSE > 0 or c.DEP_OQN_PSY_BSE > 0)
-            and c.year < year(f.DT_FIRST_AD)),
-         'No'
-      ) as Prev_Psy_Adm
-	  
-   from work.prs_ald_orc_hosp_before as f;
+      coalesce(c.max_psy_year, 'No') as Prev_Psy_Adm
+   from work.prs_ald_orc_hosp_before as f
+   left join work.carto_filtered as c
+      on f.BEN_IDT_ANO = c.BEN_IDT_ANO;
 quit;
 
+/* same for carto_ind */
 data sasdata1.carto_ind;
    set sasdata1.carto_ind;
    
@@ -290,20 +305,34 @@ data sasdata1.carto_ind;
 run;
 
 
+/* 1. Extract unique patients and their first admission year */
+proc sql noprint;
+   create table work.patient_index_ind as
+   select distinct BEN_IDT_ANO, DT_FIRST_AD
+   from work.prs_ald_orc_hosp_crto_DEP_before;
+quit;
+
+/* 2. Pre-aggregate the max prior year per patient from carto_ind */
+proc sql;
+   create table work.carto_ind_filtered as
+   select 
+      p.BEN_IDT_ANO,
+      put(max(c.year), 4.) as max_ind_year
+   from work.patient_index_ind as p
+   inner join sasdata1.carto_ind as c
+      on p.BEN_IDT_ANO = c.BEN_IDT_ANO
+   where c.has_psy_flag = 1
+     and c.year < year(p.DT_FIRST_AD)
+   group by p.BEN_IDT_ANO;
+quit;
+
+/* 3. Left join the result back and assign 'No' as the default */
 proc sql;
    create table work.prs_ald_orc_hosp_crto_before as
    select 
       f.*,
-      
-	 /* Same with the other crto db */
-      coalesce(
-         (select put(max(c.year), 4.)  
-          from sasdata1.carto_ind as c 
-          where c.BEN_IDT_ANO = f.BEN_IDT_ANO 
-            and c.has_psy_flag = 1
-            and c.year < year(f.DT_FIRST_AD)),
-         'No'
-      ) as Prev_Psy_Dx_Rx
-	  
-   from work.prs_ald_orc_hosp_crto_DEP_before as f;
+      coalesce(c.max_ind_year, 'No') as Prev_Psy_Dx_Rx
+   from work.prs_ald_orc_hosp_crto_DEP_before as f
+   left join work.carto_ind_filtered as c
+      on f.BEN_IDT_ANO = c.BEN_IDT_ANO;
 quit;
