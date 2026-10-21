@@ -45,7 +45,7 @@ proc sql;
       on t.BEN_IDT_ANO = r.BEN_IDT_ANO
    and r.EXE_SOI_DTD >= t.DT_FIRST_AD
      where (
-                 (r.PHA_ATC_CLA like 'N05A%' and r.PHA_ATC_CLA not like 'N05AA%') /* antipsychotics - lithium */
+                 (r.PHA_ATC_CLA like 'N05A%' and r.PHA_ATC_CLA not like 'N05AA%') /* antipsychotics - lithium but not so-called sedative NLP*/
                 /* or ref.PHA_ATC_CLA like 'N05B%' 
                  or ref.PHA_ATC_CLA like 'N05C%' anxiolytics, hypnotics */
                  or r.PHA_ATC_CLA like 'N06A%' /* antidepressants */
