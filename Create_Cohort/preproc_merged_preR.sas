@@ -11,7 +11,7 @@ data work.cv_before;
 run;
 
 
-proc sort data=work.prs_ald_orc_hosp_geo_presc_after nodupkey out=work.cv_after;
+proc sort data=work.PRS_ALD_ORC_HOSP_GEO_PRESC_AFTER nodupkey out=work.cv_after;
    by BEN_IDT_ANO EXE_SOI_DTD PHA_ATC_LIB;
 run;
 
@@ -115,28 +115,28 @@ proc sort data=work.cv_events_after;
    by BEN_IDT_ANO start;
 run;
 
-/* 2. Truncate follow-up after the SWI_CLA event */
+/* NOT DONE 2. Truncate follow-up after the SWI_CLA event 
 data work.cv_events_rd_after;
    set work.cv_events_after;
    by BEN_IDT_ANO;
    
    retain stop_patient;
    
-   /* Reset the stop flag for each new patient */
+   Reset the stop flag for each new patient
    if first.BEN_IDT_ANO then stop_patient = 0;
    
-   /* If a previous row triggered SWI_CLA, drop this and all subsequent rows */
+   If a previous row triggered SWI_CLA, drop this and all subsequent rows
    if stop_patient then delete;
    
    output;
    
-   /* If the current row is SWI_CLA, flag to stop processing further rows for this patient */
+   If the current row is SWI_CLA, flag to stop processing further rows for this patient 
    if event = 'SWI_CLA' then stop_patient = 1;
-run;
+run;*/
 
 
-/* now merge cv_after and cv_events_rd_after */
-/* 1. Dynamically find columns in cv_before that are NOT in cv_events_rd_after */
+/* now merge cv_before and cv_events_rd_after */
+/* 1. Dynamically find columns in cv_before that are NOT in cv_events_[rd]_after */
 proc sql noprint;
    select distinct upcase(a.name) into :cols_to_pull separated by ', b.'
    from dictionary.columns as a
@@ -144,7 +144,7 @@ proc sql noprint;
      and upcase(a.name) not in (
         select upcase(b.name) 
         from dictionary.columns as b 
-        where b.libname = 'WORK' and b.memname = 'CV_EVENTS_RD_AFTER'
+        where b.libname = 'WORK' and b.memname = 'CV_EVENTS_AFTER' /* RD_ */
      )
      and upcase(a.name) ne 'BEN_IDT_ANO'; /* Exclude the join key itself */
 quit;
@@ -157,7 +157,7 @@ proc sort data=work.cv_before nodupkey out=work.cv_before_unique;
    by BEN_IDT_ANO;
 run;
 
-/* 3. Left join cv_events_rd_after with only the missing columns */
+/* 3. Left join cv_events_[rd]_after with only the missing columns */
 proc sql;
    create table work.merged_ as
    select 
@@ -166,7 +166,13 @@ proc sql;
       %if &cols_to_pull ne %str() %then %do;
          , b.&cols_to_pull.
       %end;
-   from work.cv_events_rd_after as a
+   from work.cv_events_after as a /* RD_ */
    left join work.cv_before_unique as b
       on a.BEN_IDT_ANO = b.BEN_IDT_ANO;
 quit;
+proc sort data=work.merged_ out=work.merged_;
+   by BEN_IDT_ANO EXE_SOI_DTD;
+run;
+proc copy in=work out=sasdata1;
+   select merged_;
+run;
