@@ -1,3 +1,11 @@
+/* If wants to use date of script rather than refill*/
+/* Beware when PRE_PRE > strictly to dt_first_ad
+PRE_PRE = strictly to dt_first_ad when picking up when scripted
+Use MAX_TRT_DTD as obtained in sasdata1.Improved_etc...
+CENS never appears
+EXE_SOI still in the final db
+*/
+
 /* simply aggregates the 4 other preproc_merged_xxx.sas scripts to be run in one go
 update: change where to join to increase computational efficiency
 */
