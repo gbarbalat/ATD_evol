@@ -10,7 +10,7 @@ proc sql;
    from sasdata1.prs_rx;
 quit;
 
-/* Step 2: Join back to prs_rx to get candidate antidepressant lines on or after DT_FIRST_AD */
+/* Step 2: Join back to prs_rx to get candidate Rx lines on or after DT_FIRST_AD */
 proc sql;
    create table work.filtered_prs as
    select 
@@ -23,6 +23,7 @@ proc sql;
       r.PHA_ATC_CLA,
       r.PHA_ATC_LIB, 
 	  r.PHA_ACT_QSN,
+	  r.PHA_FRM_LIB,
 	  r.PSP_SPE_COD,
 	  r.PSP_ACT_NAT,
 	  r.RGO_ASU_NAT,
@@ -36,7 +37,7 @@ proc sql;
       on t.BEN_IDT_ANO = r.BEN_IDT_ANO
    and r.EXE_SOI_DTD >= t.DT_FIRST_AD
      where (
-                    r.PHA_ATC_CLA like 'N05A%' /* antipsychotics - lithium */
+                 (r.PHA_ATC_CLA like 'N05A%' and r.PHA_ATC_CLA not like 'N05AA%') /* antipsychotics - lithium but not so-called sedative NLP*/
                 /* or ref.PHA_ATC_CLA like 'N05B%' 
                  or ref.PHA_ATC_CLA like 'N05C%' anxiolytics, hypnotics */
                  or r.PHA_ATC_CLA like 'N06A%' /* antidepressants */
@@ -119,6 +120,7 @@ proc sql;
       f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
       f.PHA_ACT_QSN,
+	  f.PHA_FRM_LIB,
       f.PSP_SPE_COD,
       f.PSP_ACT_NAT,
       f.RGO_ASU_NAT,
@@ -136,7 +138,7 @@ proc sql;
       select 
          BEN_IDT_ANO,
          datepart(EXE_SOI_DTD) as exe_date,
-         case when PHA_ATC_CLA like 'N05B%' or PHA_ATC_CLA like 'N05C%' then 1 else 0 end as is_anx,
+         case when PHA_ATC_CLA like 'N05B%' or PHA_ATC_CLA like 'N05C%'  or PHA_ATC_CLA like 'N05AA%' then 1 else 0 end as is_anx,
          case when not (PHA_ATC_CLA like 'N05B%' or PHA_ATC_CLA like 'N05C%') then 1 else 0 end as is_other
       from sasdata1.prs_rx
    ) as r
@@ -155,6 +157,7 @@ proc sql;
       f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
       f.PHA_ACT_QSN,
+	  f.PHA_FRM_LIB,
       f.PSP_SPE_COD,
       f.PSP_ACT_NAT,
       f.RGO_ASU_NAT,
@@ -177,7 +180,9 @@ proc sql;
       f.next_exe_date,
       f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
-      f.PHA_ACT_QSN,
+      f.PHA_ACT_QSN,	  
+	  f.PHA_FRM_LIB,
+
       f.PSP_SPE_COD,
       f.PSP_ACT_NAT,
       f.RGO_ASU_NAT,
@@ -206,9 +211,9 @@ proc sql;
       select 
          BEN_IDT_ANO,
          datepart(EXE_SOI_DTD) as exe_date,
-		 case when PSE_SPE_COD=1 then 1 else 0 end as is_GP,
-		 case when PSE_SPE_COD=33 then 1 else 0 end as is_Psych,
-         case when PSE_SPE_COD not in (0, 1,33) then 1 else 0 end as is_OtherMed,
+		 case when PSE_SPE_COD=1 or PSE_SPE_COD=22 or PSE_SPE_COD=23 then 1 else 0 end as is_GP,
+		 case when PSE_SPE_COD=33 or PSE_SPE_COD=17 or PSE_SPE_COD=75  then 1 else 0 end as is_Psych,
+         case when PSE_SPE_COD not in (0,1,22,23,17,33,75) then 1 else 0 end as is_OtherMed,
 		 case when PSE_SPE_COD=0 then 1 else 0 end as is_SeenNonMed,
 
          case when RGO_ASU_NAT in (40,80) then 1 else 0 end as is_ATMPInv,
@@ -232,6 +237,7 @@ proc sql;
       f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
       f.PHA_ACT_QSN,
+	  f.PHA_FRM_LIB,
       f.PSP_SPE_COD,
       f.PSP_ACT_NAT,
       f.RGO_ASU_NAT,
@@ -259,6 +265,7 @@ proc sql;
       f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
       f.PHA_ACT_QSN,
+	  f.PHA_FRM_LIB,
       f.PSP_SPE_COD,
       f.PSP_ACT_NAT,
       f.RGO_ASU_NAT,
@@ -306,6 +313,7 @@ proc sql;
       f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
       f.PHA_ACT_QSN,
+	  f.PHA_FRM_LIB,
       f.PSP_SPE_COD,
       f.PSP_ACT_NAT,
       f.RGO_ASU_NAT,
@@ -344,6 +352,7 @@ proc sql;
       f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
       f.PHA_ACT_QSN,
+	  f.PHA_FRM_LIB,
       f.PSP_SPE_COD,
       f.PSP_ACT_NAT,
       f.RGO_ASU_NAT,
@@ -385,9 +394,10 @@ proc sql;
       f.BEN_RES_COM,
       f.EXE_SOI_DTD,
       f.next_exe_date,
-      f.PHA_ATC_CLA,
+	  f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
       f.PHA_ACT_QSN,
+	  f.PHA_FRM_LIB,
       f.PSP_SPE_COD,
       f.PSP_ACT_NAT,
       f.RGO_ASU_NAT,
@@ -451,6 +461,7 @@ proc sql;
       f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
       f.PHA_ACT_QSN,
+	  f.PHA_FRM_LIB,
       f.PSP_SPE_COD,
       f.PSP_ACT_NAT,
       f.RGO_ASU_NAT,
@@ -517,6 +528,7 @@ proc sql;
       f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
       f.PHA_ACT_QSN,
+	  f.PHA_FRM_LIB,
       f.PSP_SPE_COD,
       f.PSP_ACT_NAT,
       f.RGO_ASU_NAT,
@@ -584,6 +596,7 @@ proc sql;
       f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
       f.PHA_ACT_QSN,
+	  f.PHA_FRM_LIB,
       f.PSP_SPE_COD,
       f.PSP_ACT_NAT,
       f.RGO_ASU_NAT,
@@ -668,6 +681,7 @@ proc sql;
       f.PHA_ATC_CLA,
       f.PHA_ATC_LIB, 
       f.PHA_ACT_QSN,
+	  f.PHA_FRM_LIB,
       f.PSP_SPE_COD,
       f.PSP_ACT_NAT,
       f.RGO_ASU_NAT,
