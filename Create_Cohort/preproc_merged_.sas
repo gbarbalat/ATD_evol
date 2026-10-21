@@ -152,7 +152,7 @@ proc sql;
    ) as r
       on f.BEN_IDT_ANO = r.BEN_IDT_ANO
      and r.exe_date > f.EXE_SOI_DTD
-     and (f.next_exe_date is null or r.pre_date < f.next_exe_date)
+     and (f.next_exe_date is null or r.exe_date < f.next_exe_date)
      
    group by 
       f.BEN_IDT_ANO,
