@@ -101,7 +101,7 @@ proc sql;
     from work.merged_checks_recode3
     group by BEN_IDT_ANO;
     
-    create table work.patient_terminal as
+    create table work.patient_terminal_temp as
     select a.BEN_IDT_ANO, 
            a.event as terminal_event, 
            b.max_stop
@@ -110,7 +110,27 @@ proc sql;
       on a.BEN_IDT_ANO = b.BEN_IDT_ANO and a.stop = b.max_stop;
 quit;
 
-/* 2. Generate 45-day interval blocks */
+/* 2. Assign priority: 1 for Cens/Death, 2 for any other event */
+data work.patient_terminal_ranked;
+    set work.patient_terminal_temp;
+    if terminal_event in ('Cens', 'Death') then priority = 1;
+    else priority = 2;
+run;
+
+/* Sort by patient and priority (so Cens/Death floats to the top) */
+proc sort data=work.patient_terminal_ranked;
+    by BEN_IDT_ANO priority;
+run;
+
+/* Keep only the first record per patient */
+data work.patient_terminal;
+    set work.patient_terminal_ranked;
+    by BEN_IDT_ANO;
+    if first.BEN_IDT_ANO then output;
+    drop priority;
+run;
+
+/* Generate 45-day interval blocks */
 data work.intervals;
     set work.patient_max;
     if max_stop <= 0 then max_stop = 0;
@@ -166,6 +186,23 @@ data work.mode_region_top; set work.mode_region; by BEN_IDT_ANO int_start; if fi
 
 proc sort data=work.mode_fdep; by BEN_IDT_ANO int_start descending freq; run;
 data work.mode_fdep_top; set work.mode_fdep; by BEN_IDT_ANO int_start; if first.int_start; keep BEN_IDT_ANO int_start FDEP20_quint; run;
+
+/* mean age instead of varying age */
+/* 1. Calculate the mean per patient */
+proc sql;
+    create table work.patient_means as
+    select BEN_IDT_ANO, mean(BEN_AMA_COD) as mean_ama
+    from work.overlapped
+    group by BEN_IDT_ANO;
+quit;
+
+/* 2. Replace BEN_AMA_COD with the calculated mean */
+data work.overlapped;
+    merge work.overlapped (drop=BEN_AMA_COD) work.patient_means;
+    by BEN_IDT_ANO;
+    BEN_AMA_COD = mean_ama;
+    drop mean_ama;
+run;
 
 /* 2. Main Aggregation Query (Without inline subquery errors) */
 proc sql;
@@ -313,4 +350,20 @@ proc sql;
       on a.BEN_IDT_ANO = b.BEN_IDT_ANO 
      and a.start = b.int_start 
      and a.stop = b.int_stop;
+quit;
+
+/* -------------------------------------------------------------------------
+   Step 7: Checks
+   ------------------------------------------------------------------------- */
+proc sql;
+    create table work.patients_under_9 as
+    select BEN_IDT_ANO, 
+           DT_FIRST_AD, 
+           MAX_TRT_DTD, 
+           BEN_DCD_DTE
+    from sasdata1.merged_checks_recode6
+    where (MAX_TRT_DTD > intnx('year', DT_FIRST_AD, 1, 'same') 
+           and BEN_DCD_DTE > intnx('year', DT_FIRST_AD, 1, 'same'))
+    group by BEN_IDT_ANO
+    having count(*) < 9;
 quit;
