@@ -32,9 +32,8 @@ run;
 
 /* =========================================================================
    Step 3: Shift event and psy_meds by 1 row and apply terminal conditions
-   ========================================================================= */
-/* =========================================================================
-   Step 3: Emulate lead() in SAS using a row index and self-join, 
+   
+   Emulate lead() in SAS using a row index and self-join, 
            then apply terminal conditions on the last row
    ========================================================================= */
 
@@ -77,11 +76,11 @@ data work.merged_checks_recode3;
             event = "Cens";
             psy_meds = "Cens";
         end;
-        else if next_exe_date = MAX_TRT_DTD then do;
+        else if next_exe_date >= MAX_TRT_DTD then do;
             event = "Cens";
             psy_meds = "Cens";
         end;
-        else if next_exe_date = BEN_DCD_DTE then do;
+        else if next_exe_date >= BEN_DCD_DTE then do;
             event = "Death";
             psy_meds = "Death";
         end;
@@ -89,9 +88,7 @@ data work.merged_checks_recode3;
     
     drop row_num l_event l_psy_meds;
 run;
-/* =========================================================================
-   Step 4: Generate 45-day intervals, merge, filter overlaps, and aggregate
-   ========================================================================= */
+
 /* =========================================================================
    Step 4: Generate 45-day intervals, merge, filter overlaps, and aggregate
    ========================================================================= */
@@ -152,7 +149,7 @@ quit;
 /* =========================================================================
    Step 5: Final Aggregation (All variables + True Modes + Patient attributes)
    ========================================================================= */
-/* 1. Pre-calculate the mode for season_year, region, and FDEP20_quint */
+
 /* 1. Pre-calculate the mode for season_year, region, and FDEP20_quint with an explicit frequency name */
 proc freq data=work.overlapped noprint;
     tables BEN_IDT_ANO * int_start * season_year / out=work.mode_season (rename=(count=freq) drop=percent);
@@ -221,7 +218,7 @@ proc sql;
 
         /* Event Hierarchy Logic (Using IS NOT NULL to prevent type comparison errors) */
         (case 
-           when a.int_stop = a.max_patient_stop and a.terminal_event is not null then a.terminal_event
+           when a.int_stop = a.max_patient_stop and a.terminal_event in ('Cens', 'Death') then a.terminal_event
            when max(case when a.event = 'SWI_CLA' then 1 else 0 end) > 0 then 'SWI_CLA'
            when max(case when a.event = 'ATD_OTH' then 1 else 0 end) > 0 and 
                 max(case when a.event = 'SWI_CLA' then 1 else 0 end) = 0 then 'ATD_OTH'
@@ -249,13 +246,11 @@ proc sql;
     select a.*, 
            b.season_year, 
            c.region, 
-           d.FDEP20_quint,
-           e.psy_mds
-    from sasdata1.merged_checks_recode4 a
+           d.FDEP20_quint
+    from work.merged_checks_recode4 a
     left join work.mode_season_top b on a.BEN_IDT_ANO = b.BEN_IDT_ANO and a.start = b.int_start
     left join work.mode_region_top c on a.BEN_IDT_ANO = c.BEN_IDT_ANO and a.start = c.int_start
-    left join work.mode_fdep_top d on a.BEN_IDT_ANO = d.BEN_IDT_ANO and a.start = d.int_start
-    left join work.psy_meds_agg e on a.BEN_IDT_ANO = e.BEN_IDT_ANO and a.start = e.int_start;
+    left join work.mode_fdep_top d on a.BEN_IDT_ANO = d.BEN_IDT_ANO and a.start = d.int_start;
 quit;
 
 
@@ -263,31 +258,57 @@ quit;
    Step 6: Attach comma-separated unique sorted psy_meds safely
    ------------------------------------------------------------------------- */
 /* Sort unique medication components per patient-interval */
-proc sort data=work.overlapped(keep=BEN_IDT_ANO int_start int_stop PHA_ATC_LIB) 
-          out=work.unique_meds nodupkey;
-    by BEN_IDT_ANO int_start int_stop PHA_ATC_LIB;
-    where PHA_ATC_LIB ne '';
+proc sort data=work.overlapped(keep=BEN_IDT_ANO int_start int_stop psy_meds) 
+          out=work.all_meds ;/*nodupkey*/
+    by BEN_IDT_ANO int_start int_stop psy_meds;
+    where psy_meds ne '';
+run;
+proc sort data=work.all_meds
+          out=work.unique_meds nodupkey;/**/
+    by BEN_IDT_ANO int_start int_stop psy_meds;
+    where psy_meds ne '';
 run;
 
 /* Concatenate sorted unique values using data step first/last logic */
-data work.psy_meds_agg;
-    set work.unique_meds;
-    by BEN_IDT_ANO int_start int_stop;
-    length psy_mds $500;
-    retain psy_mds;
-    
-    if first.int_stop then psy_mds = trim(PHA_ATC_LIB);
-    else psy_mds = trim(psy_mds) || ', ' || trim(PHA_ATC_LIB);
-    
-    if last.int_stop then output;
-    keep BEN_IDT_ANO int_start int_stop psy_mds;
+/* Step 1: Flatten rows and split any comma-separated values into individual rows */
+data work.meds_long;
+    set work.all_meds;
+    do i = 1 to countw(psy_meds, ',');
+        med_item = upcase(strip(scan(psy_meds, i, ',')));
+        if med_item ne '' then output;
+    end;
+    keep BEN_IDT_ANO int_start int_stop med_item;
 run;
+
+/* Step 2: Sort, remove redundancies, and ensure alphabetical order */
+proc sort data=work.meds_long nodupkey;
+    by BEN_IDT_ANO int_start int_stop med_item;
+run;
+
+/* Step 3: Collapse back into a single string per group */
+data work.psy_meds_agg;
+    set work.meds_long;
+    by BEN_IDT_ANO int_start int_stop med_item;
+    
+    length psy_meds $1000;
+    retain psy_meds;
+    
+    if first.int_stop or first.int_start or first.BEN_IDT_ANO then psy_meds = '';
+    
+    if psy_meds = '' then psy_meds = med_item;
+    else psy_meds = catx(', ', psy_meds, med_item);
+    
+    if last.int_stop or last.int_start or last.BEN_IDT_ANO then output;
+    
+    keep BEN_IDT_ANO int_start int_stop psy_meds;
+run;
+
 
 /* Merge back into final dataset */
 proc sql;
-    create table work.merged_checks_recode6 as
-    select a.*, b.psy_mds
-    from sasdata1.merged_checks_recode5 a
+    create table sasdata1.merged_checks_recode6 as
+    select a.*, b.psy_meds
+    from work.merged_checks_recode5 a
     left join work.psy_meds_agg b
       on a.BEN_IDT_ANO = b.BEN_IDT_ANO 
      and a.start = b.int_start 
