@@ -1192,7 +1192,7 @@ quit;
 
 /* Step 2: Keep only rows where BEN_IDT is NOT in the exclusion list */
 proc sql;
-    create table work.PRS_ALD_ORC_HOSP_G_AFTER as
+    create table work.PRS_ALD_ORC_HOSP_G_AFTER_keep as
     select *
     from work.PRS_ALD_ORC_HOSP_G_AFTER
     where BEN_IDT_ANO not in (select BEN_IDT_ANO from work.excluded_ids);
@@ -1205,7 +1205,7 @@ proc sql;
       f.*,
       r.FDEP20_quint,
       r.P20_POP
-   from work.PRS_ALD_ORC_HOSP_G_AFTER as f
+   from work.PRS_ALD_ORC_HOSP_G_AFTER_keep as f
    left join rfcommun.defa_uu2020 as r
       on f.depcom = r.CODGEO;
 quit;
@@ -1228,8 +1228,8 @@ proc sql;
    create table work.PRS_ALD_ORC_HOSP_GEO_AFTER as
    select 
       f.*,
-      coalesce(r.Nb_GP, 0) as Nb_GP,
-      coalesce(r.Nb_Psych, 0) as Nb_Psych
+      r.Nb_GP,
+      r.Nb_Psych
    from work.PRS_ALD_ORC_HOSP_GE_AFTER as f
    left join work.density_agg as r
       on f.depcom = r.COM;
