@@ -1219,8 +1219,8 @@ proc sql;
    create table work.density_agg as
    select 
       put(COM, $5.) as COM,
-      sum(case when SPE = '01' or SPE='22' or SPE='23' then NB_PS else 0 end) as Nb_GP,
-      sum(case when SPE = '33' or SPE='17' or SPE='75' then NB_PS else 0 end) as Nb_Psych
+      sum(case when SPE = '01' or SPE='22' or SPE='23' then NB_PS else . end) as Nb_GP,
+      sum(case when SPE = '33' or SPE='17' or SPE='75' then NB_PS else . end) as Nb_Psych
    from rfcommun.denb_ps_commune_01jan2022
    group by calculated COM;
 
