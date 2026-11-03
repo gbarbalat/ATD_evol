@@ -1,19 +1,19 @@
 # Section 1 - Create cohort on sas
 
-## Collect based on first steps of flowchart  
-On SAS, run gather_raw_dbs_etc... 
+## Collect dbs  
+_based on first steps of flowchart  
+On SAS, run gather_raw_dbs_etc..._  
 
+## Pre-process dbs  
+_based on flowchart: obvious filter (excl criteria from flowchart) and obvious select on Out, Exp, Cv 
+on SAS, run preproc_flowchart.sas_  
 
-## Pre-process dbs based on flowchart: obvious filter (excl criteria from flowchart) and obvious select on Out, Exp, Cv 
-on SAS, run preproc_flowchart.sas  
-
-## Then run preproc_gather scripts, then preproc_merged scripts  
-includes first steps of data cleaning that I typically do on R because databases are too big
+## Run preproc_gather scripts, then preproc_merged scripts  
+_includes first steps of data cleaning that I typically do on R because databases are too big, here done on SAS_  
 
 
 # Section 2 - Process data  
-
-## Then On R, run ATD_evol_Process.R    
+ATD_evol_Process.R  
 
 ## merged_add_filter  
 _merge dbs of interest, add other vars; further filtering_ done on SAS  
@@ -31,8 +31,8 @@ check NA, levels and distrib
 ## merged_ignore  
 CHECK corr, naniar and drymice; RMV var/cases you can ignore: obvious rmv (no value in observation) and more strategic rmv (influx-outflux); save merged_ignore  
 
-# merged_listwise  
+## merged_listwise  
 complete cases - compare included-full sample using zombie_process_for_full.R and compare_inc_full.R; calculate attrition weights if necessary  
 
-# merged_sensit  
+## merged_sensit  
 for sensitivity analyses; save merged_sensit
