@@ -7,34 +7,34 @@ update: change where to join to increase computational efficiency
 === _after ====
 ============= */
 /* Step 0: eliminate PHA_ACT_QSN negative */
-/* Automatically get all column names except PHA_ACT_QSN */
+/* Automatically get all column names except PHA_ACT_QSN 
 proc sql noprint;
    select name into :col_list separated by ', '
    from dictionary.columns
    where libname = 'SASDATA1' 
      and memname = 'PRS_RX' 
      and upcase(name) ne 'PHA_ACT_QSN';
-quit;
+quit;*/
 
-/* Group, net out quantities using a unique alias, and drop zeros */
+/* Group, net out quantities using a unique alias, and drop zeros 
 proc sql;
    create table work.pres_netted as
    select &col_list., sum(PHA_ACT_QSN) as net_qsn
    from sasdata1.prs_rx
    group by BEN_IDT_ANO, EXE_SOI_DTD, PRE_PRE_DTD, PHA_PRS_C13
    having calculated net_qsn ne 0;
-quit;
+quit;*/
 
 /* Step 1: Extract the first 10 distinct beneficiaries and their DT_FIRST_AD */
 proc sql outobs=10;
    create table work.top10_ids as
    select distinct BEN_IDT_ANO, DT_FIRST_AD
-   from work.pres_netted;
+   from sasdata1.prs_rx; /* work.pres_netted*/
 quit;
 proc sql;
    create table work.top10_ids as
    select distinct BEN_IDT_ANO, DT_FIRST_AD
-   from work.pres_netted;
+   from sasdata1.prs_rx; /* work.pres_netted*/
 quit;
 
 /* Step 2: Join back to prs_rx to get candidate Rx lines on or after DT_FIRST_AD */
