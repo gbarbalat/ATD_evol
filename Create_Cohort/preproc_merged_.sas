@@ -1159,7 +1159,7 @@ data work.PRS_ALD_ORC_HOSP_G_AFTER;
       when ('08', '10', '51', '52', '54', '55', '57', '67', '68', '88')               region = "44-Grand Est";
       when ('09', '11', '12', '30', '31', '32', '34', '46', '48', '65', '66', '81', '82') region = "76-Occitanie";
       when ('14', '27', '50', '61', '76')                                           region = "28- Normandie";
-      when ('16', '17', '19', '23', '24', '33', '40', '47', '79', '86', '87')         region = "75-Nouvelle Aquitaine";
+      when ('16', '17', '19', '23', '24', '33', '40', '47', '64','79', '86', '87')         region = "75-Nouvelle Aquitaine";
       when ('18', '28', '36', '37', '41', '45')                                     region = "24-Centre-Val de Loire";
       when ('2A', '2B', '201', '202', '20')                                         region = "94-Corse";
       when ('21', '25', '39', '58', '70', '71', '89', '90')                         region = "27- Bourgogne Franche Comté";
@@ -1174,6 +1174,29 @@ data work.PRS_ALD_ORC_HOSP_G_AFTER;
       otherwise                                                                     region = "";
    end;
 run;
+
+/* rmv Corsica, DOM and other codes */
+/* Step 1: Create a list of BEN_IDT values to exclude */
+proc sql;
+    create table work.excluded_ids as
+    select distinct BEN_IDT_ANO
+    from work.PRS_ALD_ORC_HOSP_G_AFTER
+    where 
+        /* Check department prefixes (handling 2-digit and 3-digit variations) */
+        substr(left(trim(BEN_RES_DPT)), 1, 3) in ('209', '097', '098', '099', '999', '971', '972', '973', '974', '975', '976', '977')
+        or substr(left(trim(BEN_RES_DPT)), 1, 2) in ('97')
+        
+        /* Check specified regions (including common spelling variants) */
+        or region in ('94-Corse', '01-Guadeloupe', '02-Martiniquee', '02-Martinique', '03-Guyane', '04-La Réunion', '06-Mayotte');
+quit;
+
+/* Step 2: Keep only rows where BEN_IDT is NOT in the exclusion list */
+proc sql;
+    create table work.PRS_ALD_ORC_HOSP_G_AFTER as
+    select *
+    from work.PRS_ALD_ORC_HOSP_G_AFTER
+    where BEN_IDT_ANO not in (select BEN_IDT_ANO from work.excluded_ids);
+quit;
 
 /* go to rfcommun.defa_uu2020, where CODGEO is our depcom, and gather for each row FDEP20_quint and P20_POP */
 proc sql;
