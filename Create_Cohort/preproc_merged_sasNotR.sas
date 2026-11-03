@@ -365,5 +365,11 @@ proc sql;
     where (MAX_TRT_DTD > intnx('year', DT_FIRST_AD, 1, 'same') 
            and BEN_DCD_DTE > intnx('year', DT_FIRST_AD, 1, 'same'))
     group by BEN_IDT_ANO
-    having count(*) < 9;
+    having count(*) <> 9;
 quit;
+
+/* rmv 2 participants entered mistakenly */
+data sasdata1.merged_checks_recode6;
+    set sasdata1.merged_checks_recode6;
+    if BEN_IDT_ANO not in ('A', 'B');
+run;
