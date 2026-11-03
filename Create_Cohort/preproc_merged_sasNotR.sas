@@ -360,7 +360,7 @@ proc sql;
     select BEN_IDT_ANO, 
            DT_FIRST_AD, 
            MAX_TRT_DTD, 
-           BEN_DCD_DTE
+           BEN_DCD_DTE, start, stop
     from sasdata1.merged_checks_recode6
     where (MAX_TRT_DTD > intnx('year', DT_FIRST_AD, 1, 'same') 
            and BEN_DCD_DTE > intnx('year', DT_FIRST_AD, 1, 'same'))
