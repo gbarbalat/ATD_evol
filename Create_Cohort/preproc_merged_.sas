@@ -24,17 +24,23 @@ proc sql;
    group by BEN_IDT_ANO, EXE_SOI_DTD, PRE_PRE_DTD, PHA_PRS_C13
    having calculated net_qsn ne 0;
 quit;*/
+proc sql;
+    create table work.pres_netted as
+    select *, 
+           0 as net_qsn
+    from sasdata1.prs_rx;
+quit;
 
 /* Step 1: Extract the first 10 distinct beneficiaries and their DT_FIRST_AD */
 proc sql outobs=10;
    create table work.top10_ids as
    select distinct BEN_IDT_ANO, DT_FIRST_AD
-   from sasdata1.prs_rx; /* work.pres_netted*/
+   from work.pres_netted; /* work.pres_netted*/
 quit;
 proc sql;
    create table work.top10_ids as
    select distinct BEN_IDT_ANO, DT_FIRST_AD
-   from sasdata1.prs_rx; /* work.pres_netted*/
+   from work.pres_netted; /* work.pres_netted*/
 quit;
 
 /* Step 2: Join back to prs_rx to get candidate Rx lines on or after DT_FIRST_AD */
@@ -1297,13 +1303,12 @@ proc sql;
       BEN_IDT_ANO, 
       BEN_DCD_DTE, 
       MAX_TRT_DTD
-   from work.cv_before
-   group by BEN_IDT_ANO;
+   from work.cv_before;
 quit;
 
 /* Safely left join without duplicating rows */
 proc sql;
-   create table work.cv_after as
+   create table work.cv_after_join as
    select 
       a.*,
       b.BEN_DCD_DTE,
@@ -1313,7 +1318,7 @@ proc sql;
       on a.BEN_IDT_ANO = b.BEN_IDT_ANO;
 quit;
 data work.cv_after;
-   set work.cv_after;
+   set work.cv_after_join;
    format BEN_DCD_DTE MAX_TRT_DTD date9.;
 run;
 
