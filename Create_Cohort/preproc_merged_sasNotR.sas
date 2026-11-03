@@ -204,7 +204,27 @@ data work.overlapped;
     drop mean_ama;
 run;
 
-/* 2. Main Aggregation Query (Without inline subquery errors) */
+/* add on last pickup date*/
+/* 1. Find the maximum EXE_SOI_DTD per patient */
+proc means data=work.overlapped noprint;
+    by BEN_IDT_ANO;
+    var EXE_SOI_DTD;
+    output out=work.max_pickup_dt(drop=_TYPE_ _FREQ_) max=last_pickup_dt;
+run;
+
+/* 2. Ensure overlapped is sorted for the merge */
+proc sort data=work.overlapped;
+    by BEN_IDT_ANO;
+run;
+
+/* 3. Merge the last_pickup_dt back into overlapped using a DATA step */
+data work.overlapped;
+    merge work.overlapped work.max_pickup_dt;
+    by BEN_IDT_ANO;
+    format last_pickup_dt yymmdd10.;
+run;
+
+/* Aggregation query */
 proc sql;
     create table work.merged_checks_recode4 as
     select 
@@ -218,6 +238,7 @@ proc sql;
         a.First_Prescriber,
         a.BEN_AMA_COD,
         a.BEN_DCD_DTE format=yymmdd10.,
+		a.last_pickup_dt,
         
         /* Patient-level Prev_ and history flags */
         a.Prev_AAH, a.Prev_ALDNonPsy, a.Prev_ALDPsy, a.Prev_Anx, a.Prev_ATMPInv, 
@@ -267,7 +288,7 @@ proc sql;
 
     from work.overlapped a
     group by 
-        a.BEN_IDT_ANO, a.int_start, a.int_stop, a.max_patient_stop, a.terminal_event,
+        a.BEN_IDT_ANO, a.int_start, a.int_stop, a.max_patient_stop, a.terminal_event, a.last_pickup_dt,
         a.DT_FIRST_AD, a.MAX_TRT_DTD, a.First_Prescriber, a.BEN_AMA_COD, a.BEN_DCD_DTE,
         a.Prev_AAH, a.Prev_ALDNonPsy, a.Prev_ALDPsy, a.Prev_Anx, a.Prev_ATMPInv, 
         a.Prev_C2S, a.Prev_HAD, a.Prev_MCO, a.Prev_RIP_0, a.Prev_RIP_2, 
@@ -277,7 +298,8 @@ proc sql;
     ;
 quit;
 
-/* 3. Merge back the modes and psy_meds */
+
+/* Merge back the modes and psy_meds */
 proc sql;
     create table work.merged_checks_recode5 as
     select a.*, 
@@ -368,7 +390,7 @@ proc sql;
     having count(*) <> 9;
 quit;
 
-/* rmv 2 participants entered mistakenly */
+/* rmv 2 participants entered mistakenly - DPN_QLF issue... */
 data sasdata1.merged_checks_recode6;
     set sasdata1.merged_checks_recode6;
     if BEN_IDT_ANO not in ('A', 'B');
