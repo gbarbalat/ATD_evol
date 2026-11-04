@@ -79,6 +79,8 @@ HypSed <- c(
   "LOPRAZOLAM", "LORMETAZEPAM", "ZOLPIDEM", "ZOPICLONE"
 )
 
+clean <- FALSE
+
 #merged_checks_recode ----
 #explore #cols, col names, unique values, tables, NA/distributions; NA in ID and col; 
 #obvious recode (1,2,3 to More than etc ... inc. na_if, make categ)
@@ -103,8 +105,18 @@ merged_checks_recode <- merged_checks_recode %>%
 merged_checks_recode <- merged_checks_recode %>%
   mutate(across(where(is.character), ~ na_if(trimws(.), "")))
 
+#filter out BEN_RES_DPT="991"
+id_overseas <- merged_checks_recode %>%
+  filter(BEN_RES_DPT=="991") %>%
+  pull(BEN_IDT_ANO) %>% unique
+merged_checks_recode <- merged_checks_recode %>%
+  filter(!BEN_IDT_ANO %in% id_overseas)
+
+
+if (clean) {
 glimpse(merged_checks_recode)
-date_id_too_many_col <- c("BEN_IDT_ANO", "MAX_TRT_DTD", "BEN_DCD_DTE", "DT_FIRST_AD", "last_pickup_dt", "psy_meds")
+date_id_too_many_col <- c("BEN_IDT_ANO", "BEN_RES_DPT", "MAX_TRT_DTD", "BEN_DCD_DTE", 
+                          "DT_FIRST_AD", "last_pickup_dt", "psy_meds")
 lapply(merged_checks_recode %>% select(-all_of(date_id_too_many_col)), unique)
 colSums(is.na(merged_checks_recode))
 merged_checks_recode %>%
@@ -170,8 +182,8 @@ for (col in numeric_cols) {
   
   print(p)
 }
+}
 
-#make numeric categorical
 # Find BEN_IDT_ANO where age is < 18 or > 39
 excluded_ids <- merged_checks_recode %>%
   group_by(BEN_IDT_ANO) %>%
@@ -195,6 +207,7 @@ merged_checks_recode <- merged_checks_recode %>%
     TRUE ~ NA_character_ # Assigns NA to any ages outside these specific ranges
   )) 
 
+if (clean) {
 # Observations with Discordant BEN_AMA_COD 
 ABerrant_BEN_AMA_COD <- merged_checks_recode  %>%
   group_by(BEN_IDT_ANO) %>%
@@ -242,7 +255,7 @@ target_ids <- merged_checks_recode %>%
     MAX_TRT_DTD > DT_FIRST_AD + years(1)
   ) %>%
   pull(BEN_IDT_ANO)
-
+}
 
 # make numeric categorical
 numeric_to_categ_col <- c("refill_Nb", "CumulAnx", "CumulOtherMeds",
@@ -400,6 +413,7 @@ categ_var <- c(covar_set2, "BEN_AMA_COD_cat")
 num_var <- c( "CumulAnx", "CumulOtherMeds", "CumulPsych", "P20_POP", "refill_Nb",
              "Nb_GP", "Nb_Psych") #"BEN_AMA_COD",
 
+if (clean) {
 library(ggplot2)
 
 # 1. Boxplots for numeric variables (X = event)
@@ -436,16 +450,18 @@ for (v in categ_var) {
   
   print(p)
 }
-
+}
 
 # merged_gp ----
 merged_gp <- merged_find_gp2 %>%
-  select(BEN_IDT_ANO, start, stop, DT_FIRST_AD, last_pickup_dt,
+  select(BEN_IDT_ANO, BEN_RES_DPT, start, stop, DT_FIRST_AD, last_pickup_dt,
+         BEN_DCD_DTE, MAX_TRT_DTD,
          all_of(num_var), all_of(categ_var),
          event, psy_meds)
 
 colSums(is.na(merged_gp))
 
+if (clean) {
 # Loop through and print frequency tables including NA counts
 for (col in c(categ_var, "event")) {
   cat("\n==============================\n")
@@ -476,3 +492,156 @@ for (col in num_var) {
   
   print(p)
 }
+}
+
+# merged_imputed ----
+#impute missing Nb_GP, Nb_Psych, FDEP and P20
+denb_summary <- read_sas("./rfcommun/denb_ps_commune_01jan2022.sas7bdat") %>%
+  group_by(DEP) %>%
+  dplyr::summarize(
+    Nb_GP_imp = mean(if_else(SPE %in% c("01", "22", "23"), NB_PS, 0), na.rm = TRUE),
+    Nb_Psych_imp = mean(if_else(SPE %in% c("17", "33", "75"), NB_PS, 0), na.rm = TRUE),
+    .groups = "drop"
+  )
+
+get_mode <- function(v, na.rm = TRUE) {
+  if (na.rm) {
+    v <- na.omit(v)
+  }
+  if (length(v) == 0) return(NA)
+  
+  uniqv <- unique(v)
+  uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+defa_summary <- read_sas("./rfcommun/defa_uu2020.sas7bdat") %>%
+  mutate(DEP = paste0("0", substr(CODGEO, 1, 2))) %>%
+  group_by(DEP) %>%
+  dplyr::summarize(
+    FDEP20_quint_imp = get_mode(FDEP20_quint, na.rm = TRUE),
+    P20_POP_imp = mean(P20_POP, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(FDEP20_quint_imp=as.character(FDEP20_quint_imp))
+merged_imputed <- merged_gp %>%
+  # 1. Bring in the reference data based on department matching
+  left_join(select(denb_summary, DEP, Nb_GP_imp, Nb_Psych_imp), by = c("BEN_RES_DPT" = "DEP")) %>%
+  left_join(select(defa_summary, DEP, FDEP20_quint_imp, P20_POP_imp), by = c("BEN_RES_DPT" = "DEP")) %>%
+  # 2. Impute missing Nb_GP using sum_group1 (or whichever group represents your GPs)
+  mutate(
+    Nb_GP = if_else(is.na(Nb_GP), Nb_GP_imp, Nb_GP),
+    Nb_Psych = if_else(is.na(Nb_Psych), Nb_Psych_imp, Nb_Psych),
+    FDEP20_quint = if_else(is.na(FDEP20_quint), FDEP20_quint_imp, FDEP20_quint),
+    P20_POP = if_else(is.na(P20_POP), P20_POP_imp, P20_POP)
+  ) %>%
+  # 3. Clean up the extra columns brought in by the join
+  select(-Nb_GP_imp, -Nb_Psych_imp, -FDEP20_quint_imp, -P20_POP_imp)
+colSums(is.na(merged_imputed))
+
+#merged_listwise ----
+#do not select variables where at least one missing value
+merged_listwise <- merged_gp %>%
+  select(-Nb_GP, -Nb_Psych, -FDEP20_quint, -P20_POP)
+#or na.omit
+merged_listwise <- na.omit(merged_gp) 
+
+#cut when CENS or DEATH, whichever happens first
+merged_imputed2 <- merged_imputed %>%
+  group_by(BEN_IDT_ANO) %>%
+  arrange(start, .by_group = TRUE) %>%
+  # Create a cumulative flag that turns 1 the moment "Cens" or "Death" is hit
+  mutate(has_terminal = cumsum(event %in% c("Cens", "Death"))) %>%
+  # Keep rows where the cumulative sum is 0 (before event) or 1 (the terminal event itself)
+  filter(has_terminal <= 1) %>%
+  ungroup() %>%
+  select(-has_terminal) # Clean up the helper column
+
+merged_listwise2 <- merged_listwise %>%
+  group_by(BEN_IDT_ANO) %>%
+  arrange(start, .by_group = TRUE) %>%
+  # Create a cumulative flag that turns 1 the moment "Cens" or "Death" is hit
+  mutate(has_terminal = cumsum(event %in% c("Cens", "Death"))) %>%
+  # Keep rows where the cumulative sum is 0 (before event) or 1 (the terminal event itself)
+  filter(has_terminal <= 1) %>%
+  ungroup() %>%
+  select(-has_terminal) %>% # Clean up the helper column
+  mutate(event=case_when(event=="Death" ~ 0,
+                         event=="Cens" ~ 0,
+                         TRUE ~ 1)
+  )
+
+#bivar and multivar first try ----
+all_covar <- c(num_var, categ_var)
+# Loop through each covariate and run the bivariate Cox model
+biv_models <- lapply(all_covar, function(covar) {
+  # Dynamically construct the formula
+  formula_str <- paste0("Surv(start, stop, event) ~ ", covar)
+  
+  # Fit the model
+  coxph(as.formula(formula_str), cluster=BEN_IDT_ANO, data = merged_listwise2)
+})
+names(biv_models) <- all_covar
+
+#raises memory issues
+# coxph(Surv(start, stop, event) ~ . - BEN_IDT_ANO, 
+#       cluster=BEN_IDT_ANO, 
+#       data = merged_listwise2 %>% 
+#         select(event, start, BEN_IDT_ANO, stop, all_of(categ_var))
+# )
+
+# one row per patient ----
+
+grace <- 45
+
+collapsed_data <- merged_listwise2 %>%
+  #filter(BEN_IDT_ANO=="B-4VvGqbGHgPv1USA") %>% #B---DV4-HNQn4kVPX
+  group_by(BEN_IDT_ANO) %>%
+  summarise(
+    dt_first_ad = first(DT_FIRST_AD),
+    last_pickup_dt = first(last_pickup_dt),
+    MAX_TRT_DTD = first(MAX_TRT_DTD),
+    BEN_DCD_DTE = first(BEN_DCD_DTE),
+    
+    # Calculate stop: difference between last pickup and first admission date + grace
+    stop = as.numeric(last_pickup_dt - dt_first_ad),# + grace,
+    
+    # Define event status based on your conditions
+    event = case_when(
+      # 1. If last_pickup_dt + grace exceeds 365 days (administrative censoring)
+      stop > 365 ~ 0,
+      
+      # 2. If BEN_DCD_DTE falls between last_pickup_dt and last_pickup_dt + grace
+      !is.na(BEN_DCD_DTE) & BEN_DCD_DTE >= last_pickup_dt & BEN_DCD_DTE <= (last_pickup_dt + grace) ~ 0,
+      
+      # 3. If MAX_TRT_DTD falls between last_pickup_dt and last_pickup_dt + grace
+      !is.na(MAX_TRT_DTD) & MAX_TRT_DTD >= last_pickup_dt & MAX_TRT_DTD <= (last_pickup_dt + grace) ~ 0,
+      
+      # Default: event is 1 otherwise
+      TRUE ~ 1
+    ),
+    
+    # Take the first value for all other remaining columns
+    across(-c(dt_first_ad, last_pickup_dt, MAX_TRT_DTD, BEN_DCD_DTE, stop, event), ~ first(.x)),
+    .groups = "drop"
+  ) %>%
+  mutate(stop=if_else(stop<=365, stop, 365))
+save(collapsed_data, file = "./sasdata1/collapsed_data.RData")
+
+coxph(Surv(stop, event) ~ First_Prescriber , 
+      data = collapsed_data %>% 
+        select(event, stop, all_of(all_covar))
+)
+# Loop through each covariate and run the bivariate Cox model
+biv_models <- lapply(all_covar, function(covar) {
+  # Dynamically construct the formula
+  formula_str <- paste0("Surv(stop, event) ~ ", covar)
+  
+  # Fit the model
+  coxph(as.formula(formula_str), cluster=BEN_IDT_ANO, data = collapsed_data)
+})
+names(biv_models) <- all_covar
+
+#multivar model
+coxph(Surv(stop, event) ~ . , 
+      data = collapsed_data %>% 
+        select(event, stop, all_of(all_covar))
+)
