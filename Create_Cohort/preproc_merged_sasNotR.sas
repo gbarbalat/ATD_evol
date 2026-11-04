@@ -174,7 +174,11 @@ quit;
 proc freq data=work.overlapped noprint;
     tables BEN_IDT_ANO * int_start * season_year / out=work.mode_season (rename=(count=freq) drop=percent);
     tables BEN_IDT_ANO * int_start * region / out=work.mode_region (rename=(count=freq) drop=percent);
-    tables BEN_IDT_ANO * int_start * FDEP20_quint / out=work.mode_fdep (rename=(count=freq) drop=percent);
+    tables BEN_IDT_ANO * int_start * FDEP20_quint / out=work.mode_fdep (rename=(count=freq) drop=percent);	
+run;
+
+proc freq data=work.overlapped noprint;
+      tables BEN_IDT_ANO * int_start * BEN_RES_DPT / out=work.mode_BEN_RES_DPT (rename=(count=freq) drop=percent);	
 run;
 
 /* Keep only the top frequency (mode) per patient-interval */
@@ -183,6 +187,9 @@ data work.mode_season_top; set work.mode_season; by BEN_IDT_ANO int_start; if fi
 
 proc sort data=work.mode_region; by BEN_IDT_ANO int_start descending freq; run;
 data work.mode_region_top; set work.mode_region; by BEN_IDT_ANO int_start; if first.int_start; keep BEN_IDT_ANO int_start region; run;
+
+proc sort data=work.mode_BEN_RES_DPT; by BEN_IDT_ANO int_start descending freq; run;
+data work.mode_BEN_RES_DPT_top; set work.mode_BEN_RES_DPT; by BEN_IDT_ANO int_start; if first.int_start; keep BEN_IDT_ANO int_start BEN_RES_DPT; run;
 
 proc sort data=work.mode_fdep; by BEN_IDT_ANO int_start descending freq; run;
 data work.mode_fdep_top; set work.mode_fdep; by BEN_IDT_ANO int_start; if first.int_start; keep BEN_IDT_ANO int_start FDEP20_quint; run;
@@ -305,11 +312,14 @@ proc sql;
     select a.*, 
            b.season_year, 
            c.region, 
-           d.FDEP20_quint
+           d.FDEP20_quint,
+		   e.BEN_RES_DPT
     from work.merged_checks_recode4 a
     left join work.mode_season_top b on a.BEN_IDT_ANO = b.BEN_IDT_ANO and a.start = b.int_start
     left join work.mode_region_top c on a.BEN_IDT_ANO = c.BEN_IDT_ANO and a.start = c.int_start
-    left join work.mode_fdep_top d on a.BEN_IDT_ANO = d.BEN_IDT_ANO and a.start = d.int_start;
+    left join work.mode_fdep_top d on a.BEN_IDT_ANO = d.BEN_IDT_ANO and a.start = d.int_start
+	left join work.mode_BEN_RES_DPT_top e on a.BEN_IDT_ANO = e.BEN_IDT_ANO and a.start = e.int_start 
+	;
 quit;
 
 
