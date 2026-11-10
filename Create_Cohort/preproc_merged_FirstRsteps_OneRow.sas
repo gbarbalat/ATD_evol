@@ -62,16 +62,14 @@ data work.merged_checks_recode3;
 run;
 
 /* Extract patient-level summary (first values for all other vars, plus calculated stop) */
-data work.merged_checks_recode4 (rename=(event=first_event));
-    set work.merged_checks_recode3 (where=(keep_row=1));
+data work.merged_checks_recode4;
+    set work.merged_checks_recode3 (where=(stop_found=1));
     by ben_idt_ano;
     
     /* Automatically takes the first. value for all columns due to data step behavior */
     if first.ben_idt_ano;
     
-    drop stop;
-    stop = calc_stop;
-    drop psy_meds calc_stop stop_found keep_row;
+    drop event psy_meds stop stop_found keep_row;
 run;
 
 /* concatenate meds*/
@@ -104,7 +102,7 @@ run;
 proc sort data=work.merged_checks_recode4; by ben_idt_ano; run;
 proc sort data=work.merged_checks_recode5; by ben_idt_ano; run;
 
-data work.merged_checks_recode6;
+data sasdata1.merged_checks_recode6;
     merge work.merged_checks_recode4 work.merged_checks_recode5;
     by ben_idt_ano;
 run;
