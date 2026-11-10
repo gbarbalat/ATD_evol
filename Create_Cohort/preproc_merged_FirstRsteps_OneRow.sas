@@ -1,5 +1,8 @@
 /* can't do this on R as files are too heavy ...*/ 
 %let grace = 45;
+%let LM_start = 0;
+%let LM_end = 365;
+
 
 /* =========================================================================
    Step 1: Clean dates where MAX_TRT_DTD or BEN_DCD_DTE precede DT_FIRST_AD
@@ -61,15 +64,25 @@ data work.merged_checks_recode3;
     else keep_row = 0;
 run;
 
-/* Extract patient-level summary (first values for all other vars, plus calculated stop) */
+/* Extract patient-level summary (first values for covar, plus calculated stop) */
 data work.merged_checks_recode4;
-    set work.merged_checks_recode3 (where=(stop_found=1));
+    set work.merged_checks_recode3 (where=(start=&LM_start));
     by ben_idt_ano start;
     
     /* Automatically takes the first. value for all columns due to data step behavior */
     if first.ben_idt_ano;
     
-    drop event psy_meds stop stop_found keep_row;
+    drop event psy_meds calc_stop start stop stop_found keep_row;
+run;
+
+/* Extract calculated stop */
+data work.merged_checks_recode5;
+    set work.merged_checks_recode3 (where=(stop_found=1) keep=ben_idt_ano start stop_found calc_stop);
+    by ben_idt_ano start;
+    
+    if first.ben_idt_ano;
+    
+    keep ben_idt_ano calc_stop;
 run;
 
 
@@ -80,7 +93,7 @@ proc sort data=work.merged_checks_recode3
     by ben_idt_ano start;
 run;
 
-data work.merged_checks_recode5;
+data work.psy_concat;
     set work.filtered_unique;
     by ben_idt_ano start;
     
@@ -99,12 +112,13 @@ data work.merged_checks_recode5;
 run;
 
 
-/* Merge both dbs */
+/* Merge all three dbs */
 proc sort data=work.merged_checks_recode4; by ben_idt_ano; run;
 proc sort data=work.merged_checks_recode5; by ben_idt_ano; run;
+proc sort data=work.psy_concat; by ben_idt_ano; run;
 
 data sasdata1.merged_checks_recode6;
-    merge work.merged_checks_recode4 work.merged_checks_recode5;
+    merge work.merged_checks_recode4 work.merged_checks_recode5 work.psy_concat;
     by ben_idt_ano;
 run;
 
