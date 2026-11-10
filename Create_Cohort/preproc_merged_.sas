@@ -1,6 +1,12 @@
 /* simply aggregates the 4 other preproc_merged_xxx.sas scripts to be run in one go
 update: change where to join to increase computational efficiency
 */
+/*grace period post refill. 30 is strict, 45 is plausible (30 days script + 15 days grace), 90 is extreme (3 months script very rare for patients on long-duration holidays)*/
+/* 45 is for a continuous analysis */
+%let grace = 45;
+%let LM_start = 0; /* no landmark anal */
+%let LM_end = 365;
+
 
 /* ========== 
 === CHUNK 1 ===
@@ -172,12 +178,17 @@ proc sql;
          BEN_IDT_ANO,
          datepart(EXE_SOI_DTD) as exe_date,
          case when PHA_ATC_CLA like 'N05B%' or PHA_ATC_CLA like 'N05C%'  or PHA_ATC_CLA like 'N05AA%' then 1 else 0 end as is_anx,
-         case when not (PHA_ATC_CLA like 'N05B%' or PHA_ATC_CLA like 'N05C%') then 1 else 0 end as is_other
+         case when not (PHA_ATC_CLA like 'N05A%' or PHA_ATC_CLA like 'N05B%' or PHA_ATC_CLA like 'N05C%' /* anxio hypn AP Li*/
+		 		 or PHA_ATC_CLA like 'N06A%' /* antidepressants */
+				 or PHA_ATC_CLA like 'N06BA%' /* stimulants */
+                 or PHA_ATC_CLA like 'N03A%'  /* antiepileptics */
+		 ) then 1 else 0 end as is_other
       from work.pres_netted
    ) as r
       on f.BEN_IDT_ANO = r.BEN_IDT_ANO
-     and r.exe_date > f.EXE_SOI_DTD
-     and (f.next_exe_date is null or r.exe_date < f.next_exe_date)
+     and r.exe_date >= f.EXE_SOI_DTD
+     and r.exe_date <= f.EXE_SOI_DTD + &grace 
+	 and (f.next_exe_date is null or r.exe_date <= f.next_exe_date) 
      
    group by 
       f.BEN_IDT_ANO,
@@ -200,7 +211,7 @@ quit;
 
 
 
-/* Now count visits between EXE_SOI_DTD and next_exe_date */
+/* Now check for other visits, pregnancy, and social variables */
 proc sql;
    create table work.prs_meds_visits as
    select 
@@ -256,9 +267,10 @@ proc sql;
 		 from sasdata1.prs_au
    ) as r
       on f.BEN_IDT_ANO = r.BEN_IDT_ANO
-     and r.exe_date > f.EXE_SOI_DTD
-     and (f.next_exe_date is null or r.exe_date < f.next_exe_date)
-     
+     and r.exe_date >= f.EXE_SOI_DTD
+     and r.exe_date <= f.EXE_SOI_DTD + &grace 
+	 and (f.next_exe_date is null or r.exe_date <= f.next_exe_date) 
+	 	 
    group by 
       f.BEN_IDT_ANO,
       f.DT_FIRST_AD,
@@ -332,9 +344,10 @@ proc sql;
       from sasdata1.ald
    ) as r
       on f.BEN_IDT_ANO = r.BEN_IDT_ANO
-	 and r.end_date > f.EXE_SOI_DTD
-     and (f.next_exe_date is null or r.exe_date < f.next_exe_date)
-     
+	 and r.end_date >= f.EXE_SOI_DTD
+     and r.exe_date <= f.EXE_SOI_DTD + &grace 
+	 and (f.next_exe_date is null or r.exe_date <= f.next_exe_date) 
+	 
    group by 
       f.BEN_IDT_ANO,
       f.DT_FIRST_AD,
@@ -416,8 +429,9 @@ proc sql;
       from sasdata1.orc
    ) as r
       on f.BEN_IDT_ANO = r.BEN_IDT_ANO
-     and r.end_date > f.EXE_SOI_DTD
-     and (f.next_exe_date is null or r.exe_date < f.next_exe_date)
+     and r.end_date >= f.EXE_SOI_DTD
+     and r.exe_date <= f.EXE_SOI_DTD + &grace 
+	 and (f.next_exe_date is null or r.exe_date <= f.next_exe_date) 
      
    group by 
       f.BEN_IDT_ANO,
@@ -463,7 +477,7 @@ proc sql;
             case 
                when r.ssr_start < f.next_exe_date 
                 and r.ssr_end > f.EXE_SOI_DTD 
-               then min(f.next_exe_date, r.ssr_end) - max(f.EXE_SOI_DTD, r.ssr_start) 
+			   then min(f.next_exe_date, r.ssr_end, f.EXE_SOI_DTD + &grace) - max(f.EXE_SOI_DTD, r.ssr_start)  /*+ 1 */
                else -1 
             end
          ), 0)
@@ -479,10 +493,10 @@ proc sql;
 		 AGE_ANN as AGE_SSR
       from sasdata1.ssr
    ) as r
-      on f.BEN_IDT_ANO = r.BEN_IDT_ANO
-     and r.ssr_start < f.next_exe_date
-     and r.ssr_end > f.EXE_SOI_DTD
-     
+      on f.BEN_IDT_ANO = r.BEN_IDT_ANO	 
+     and r.ssr_end >= f.EXE_SOI_DTD
+     and r.ssr_start <= f.EXE_SOI_DTD + &grace 
+	 and (f.next_exe_date is null or r.ssr_start <= f.next_exe_date) 
    group by 
       f.BEN_IDT_ANO,
       f.DT_FIRST_AD,
@@ -527,9 +541,9 @@ proc sql;
          else coalesce(sum(
             case 
                when r.mco_start < f.next_exe_date 
-                and r.mco_end > f.EXE_SOI_DTD 
-               then min(f.next_exe_date, r.mco_end) - max(f.EXE_SOI_DTD, r.mco_start) 
-               else -1 
+                and r.mco_end > f.EXE_SOI_DTD
+				then min(f.next_exe_date, r.mco_end, f.EXE_SOI_DTD + &grace) - max(f.EXE_SOI_DTD, r.mco_start)  /*+ 1 */
+				else -1 
             end
          ), 0)
       end as MCO_Length,
@@ -547,9 +561,9 @@ proc sql;
       from sasdata1.mco
    ) as r
       on f.BEN_IDT_ANO = r.BEN_IDT_ANO
-     and r.mco_start < f.next_exe_date
-     and r.mco_end > f.EXE_SOI_DTD
-     
+     and r.mco_end >= f.EXE_SOI_DTD
+     and r.mco_start <= f.EXE_SOI_DTD + &grace 
+	 and (f.next_exe_date is null or r.mco_start <= f.next_exe_date) 
    group by 
       f.BEN_IDT_ANO,
       f.DT_FIRST_AD,
@@ -596,8 +610,8 @@ proc sql;
          else coalesce(sum(
             case 
                when r.had_start < f.next_exe_date 
-                and r.had_end > f.EXE_SOI_DTD 
-               then min(f.next_exe_date, r.had_end) - max(f.EXE_SOI_DTD, r.had_start) 
+                and r.had_end > f.EXE_SOI_DTD                
+			   then min(f.next_exe_date, r.had_end, f.EXE_SOI_DTD + &grace) - max(f.EXE_SOI_DTD, r.had_start)  /*+ 1 */
                else -1 
             end
          ), 0)
@@ -615,8 +629,9 @@ proc sql;
       from sasdata1.had
    ) as r
       on f.BEN_IDT_ANO = r.BEN_IDT_ANO
-     and r.had_start < f.next_exe_date
-     and r.had_end > f.EXE_SOI_DTD
+	  and r.had_end >= f.EXE_SOI_DTD
+     and r.had_start <= f.EXE_SOI_DTD + &grace 
+	 and (f.next_exe_date is null or r.had_start <= f.next_exe_date)
      
    group by 
       f.BEN_IDT_ANO,
@@ -664,10 +679,11 @@ proc sql;
          when f.next_exe_date is null then 0
          else coalesce(sum(
             case 
-               when r.rip_start < f.next_exe_date 
-                and r.rip_end > f.EXE_SOI_DTD 
+               when r.rip_start <= f.EXE_SOI_DTD + &grace 
+			    and (f.next_exe_date is null or r.rip_start <= f.next_exe_date)
+                and r.rip_end >= f.EXE_SOI_DTD 
                 and r.FOR_ACT like '0%' 
-               then min(f.next_exe_date, r.rip_end) - max(f.EXE_SOI_DTD, r.rip_start)  /*+ 1 */
+               then min(f.next_exe_date, r.rip_end, f.EXE_SOI_DTD + &grace) - max(f.EXE_SOI_DTD, r.rip_start)  /*+ 1 */
                else -1 
             end
          ), 0)
@@ -678,10 +694,11 @@ proc sql;
          when f.next_exe_date is null then 0
          else coalesce(sum(
             case 
-               when r.rip_start < f.next_exe_date 
-                and r.rip_end > f.EXE_SOI_DTD 
+               when r.rip_start <= f.EXE_SOI_DTD + &grace 
+			    and (f.next_exe_date is null or r.rip_start <= f.next_exe_date)
+                and r.rip_end >= f.EXE_SOI_DTD 
                 and r.FOR_ACT like '2%' 
-               then min(f.next_exe_date, r.rip_end) - max(f.EXE_SOI_DTD, r.rip_start) /*+ 1 */
+               then min(f.next_exe_date, r.rip_end, f.EXE_SOI_DTD + &grace) - max(f.EXE_SOI_DTD, r.rip_start)  /*+ 1 */
                else -1 
             end
          ), 0)
@@ -700,9 +717,10 @@ proc sql;
       from sasdata1.rip
    ) as r
       on f.BEN_IDT_ANO = r.BEN_IDT_ANO
-     and r.rip_start < f.next_exe_date
-     and r.rip_end > f.EXE_SOI_DTD
-     
+     and r.rip_end >= f.EXE_SOI_DTD
+     and r.rip_start <= f.EXE_SOI_DTD + &grace 
+	 and (f.next_exe_date is null or r.rip_start <= f.next_exe_date)
+	 
    group by 
       f.BEN_IDT_ANO,
       f.DT_FIRST_AD,
@@ -800,10 +818,10 @@ proc sql;
    from work.prs_meds_before as f
    left join (
       select 
-         p.BEN_IDT_ANO,
-         max(case when r.PSE_SPE_COD = 1 then 1 else 0 end) as has_GP,
-         max(case when r.PSE_SPE_COD = 33 then 1 else 0 end) as has_Psych,
-         max(case when r.PSE_SPE_COD not in (0, 1, 33) then 1 else 0 end) as has_OtherMed,
+         p.BEN_IDT_ANO,		 
+         max(case when r.PSE_SPE_COD in (1, 22, 23) then 1 else 0 end) as has_GP,
+         max(case when r.PSE_SPE_COD in (33, 17, 75) then 1 else 0 end) as has_Psych,
+         max(case when r.PSE_SPE_COD not in (0,1,22,23,17,33,75) then 1 else 0 end) as has_OtherMed,
          max(case when r.PSE_SPE_COD = 0 then 1 else 0 end) as has_SeenNonMed,
          max(case when r.RGO_ASU_NAT in (40, 80) then 1 else 0 end) as has_ATMPInv,
          max(case when (r.RGM_COD in (180, 181, 188, 189) and r.RGM_GRG_COD = 1) then 1 else 0 end) as has_AAH,
@@ -1184,7 +1202,7 @@ proc sql;
     where 
         /* Check department prefixes (handling 2-digit and 3-digit variations) */
         substr(left(trim(BEN_RES_DPT)), 1, 3) in ('209', '097', '098', '099', '999', '971', '972', '973', '974', '975', '976', '977')
-        or substr(left(trim(BEN_RES_DPT)), 1, 2) in ('97')
+        or substr(left(trim(BEN_RES_DPT)), 1, 2) in ('97', '98', '99')
         
         /* Check specified regions (including common spelling variants) */
         or region in ('94-Corse', '01-Guadeloupe', '02-Martiniquee', '02-Martinique', '03-Guyane', '04-La Réunion', '06-Mayotte');
@@ -1352,7 +1370,7 @@ ATD_OTH if the values start by N06A but do not include N06AB;
 SWI_CLA if any of the values of PHA_ATC_CLA does not start by N06A; 
 */
 data work.cv_events_after;
-   length psy_meds $ 500 event $ 15;
+   length psy_meds $ 500 ;
    
    /* First pass: Concatenate PHA_ATC_LIB and evaluate ATC classification flags per group */
    do while(1);
