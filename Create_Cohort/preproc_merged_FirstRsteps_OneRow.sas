@@ -22,7 +22,7 @@ run;
    ========================================================================= */
 data work.merged_checks_recode2;
     set work.merged_checks_recode;
-    by BEN_IDT_ANO;
+    by BEN_IDT_ANO start;
     
     if last.BEN_IDT_ANO then do;
         /* Correct SAS syntax for finding the minimum across columns */
@@ -50,7 +50,7 @@ data work.merged_checks_recode3;
     if stop_found = 0 then do;
         keep_row = 1;
         if (stop - start) > &grace then do;
-            calc_stop = start + &grace;
+            calc_stop = start ; /* + &grace */
             stop_found = 1;
         end;
         else if last.ben_idt_ano then do;
@@ -64,7 +64,7 @@ run;
 /* Extract patient-level summary (first values for all other vars, plus calculated stop) */
 data work.merged_checks_recode4;
     set work.merged_checks_recode3 (where=(stop_found=1));
-    by ben_idt_ano;
+    by ben_idt_ano start;
     
     /* Automatically takes the first. value for all columns due to data step behavior */
     if first.ben_idt_ano;
@@ -72,17 +72,17 @@ data work.merged_checks_recode4;
     drop event psy_meds stop stop_found keep_row;
 run;
 
+
 /* concatenate meds*/
 proc sort data=work.merged_checks_recode3 
           out=work.filtered_unique;
     where keep_row = 1 and not missing(psy_meds);
-    by ben_idt_ano exe_soi_dtd;
+    by ben_idt_ano start;
 run;
-
 
 data work.merged_checks_recode5;
     set work.filtered_unique;
-    by ben_idt_ano;
+    by ben_idt_ano start;
     
     length unique_psy_meds $32767;
     retain unique_psy_meds;
@@ -97,6 +97,7 @@ data work.merged_checks_recode5;
     if last.ben_idt_ano;
     keep ben_idt_ano unique_psy_meds;
 run;
+
 
 /* Merge both dbs */
 proc sort data=work.merged_checks_recode4; by ben_idt_ano; run;
