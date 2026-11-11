@@ -475,7 +475,8 @@ proc sql;
          when f.next_exe_date is null then 0
          else coalesce(sum(
             case 
-               when r.ssr_start < f.next_exe_date 
+               when r.ssr_start <= f.EXE_SOI_DTD + &grace 
+			    and (f.next_exe_date is null or r.ssr_start <= f.next_exe_date)
                 and r.ssr_end > f.EXE_SOI_DTD 
 			   then min(f.next_exe_date, r.ssr_end, f.EXE_SOI_DTD + &grace) - max(f.EXE_SOI_DTD, r.ssr_start)  /*+ 1 */
                else -1 
@@ -494,7 +495,7 @@ proc sql;
       from sasdata1.ssr
    ) as r
       on f.BEN_IDT_ANO = r.BEN_IDT_ANO	 
-     and r.ssr_end >= f.EXE_SOI_DTD
+     and r.ssr_end > f.EXE_SOI_DTD
      and r.ssr_start <= f.EXE_SOI_DTD + &grace 
 	 and (f.next_exe_date is null or r.ssr_start <= f.next_exe_date) 
    group by 
@@ -540,8 +541,9 @@ proc sql;
          when f.next_exe_date is null then 0
          else coalesce(sum(
             case 
-               when r.mco_start < f.next_exe_date 
-                and r.mco_end > f.EXE_SOI_DTD
+               when r.mco_start <= f.EXE_SOI_DTD + &grace 
+			    and (f.next_exe_date is null or r.mco_start <= f.next_exe_date)
+                and r.mco_end > f.EXE_SOI_DTD 
 				then min(f.next_exe_date, r.mco_end, f.EXE_SOI_DTD + &grace) - max(f.EXE_SOI_DTD, r.mco_start)  /*+ 1 */
 				else -1 
             end
@@ -561,7 +563,7 @@ proc sql;
       from sasdata1.mco
    ) as r
       on f.BEN_IDT_ANO = r.BEN_IDT_ANO
-     and r.mco_end >= f.EXE_SOI_DTD
+     and r.mco_end > f.EXE_SOI_DTD
      and r.mco_start <= f.EXE_SOI_DTD + &grace 
 	 and (f.next_exe_date is null or r.mco_start <= f.next_exe_date) 
    group by 
@@ -607,10 +609,11 @@ proc sql;
       /* Safely calculate HAD length, forcing 0 if missing interval or no match */
       case 
          when f.next_exe_date is null then 0
-         else coalesce(sum(
+         else coalesce(sum(			   
             case 
-               when r.had_start < f.next_exe_date 
-                and r.had_end > f.EXE_SOI_DTD                
+               when r.had_start <= f.EXE_SOI_DTD + &grace 
+			    and (f.next_exe_date is null or r.had_start <= f.next_exe_date)
+                and r.had_end > f.EXE_SOI_DTD               
 			   then min(f.next_exe_date, r.had_end, f.EXE_SOI_DTD + &grace) - max(f.EXE_SOI_DTD, r.had_start)  /*+ 1 */
                else -1 
             end
@@ -629,7 +632,7 @@ proc sql;
       from sasdata1.had
    ) as r
       on f.BEN_IDT_ANO = r.BEN_IDT_ANO
-	  and r.had_end >= f.EXE_SOI_DTD
+	  and r.had_end > f.EXE_SOI_DTD
      and r.had_start <= f.EXE_SOI_DTD + &grace 
 	 and (f.next_exe_date is null or r.had_start <= f.next_exe_date)
      
@@ -681,7 +684,7 @@ proc sql;
             case 
                when r.rip_start <= f.EXE_SOI_DTD + &grace 
 			    and (f.next_exe_date is null or r.rip_start <= f.next_exe_date)
-                and r.rip_end >= f.EXE_SOI_DTD 
+                and r.rip_end > f.EXE_SOI_DTD 
                 and r.FOR_ACT like '0%' 
                then min(f.next_exe_date, r.rip_end, f.EXE_SOI_DTD + &grace) - max(f.EXE_SOI_DTD, r.rip_start)  /*+ 1 */
                else -1 
@@ -696,7 +699,7 @@ proc sql;
             case 
                when r.rip_start <= f.EXE_SOI_DTD + &grace 
 			    and (f.next_exe_date is null or r.rip_start <= f.next_exe_date)
-                and r.rip_end >= f.EXE_SOI_DTD 
+                and r.rip_end > f.EXE_SOI_DTD 
                 and r.FOR_ACT like '2%' 
                then min(f.next_exe_date, r.rip_end, f.EXE_SOI_DTD + &grace) - max(f.EXE_SOI_DTD, r.rip_start)  /*+ 1 */
                else -1 
@@ -717,7 +720,7 @@ proc sql;
       from sasdata1.rip
    ) as r
       on f.BEN_IDT_ANO = r.BEN_IDT_ANO
-     and r.rip_end >= f.EXE_SOI_DTD
+     and r.rip_end > f.EXE_SOI_DTD
      and r.rip_start <= f.EXE_SOI_DTD + &grace 
 	 and (f.next_exe_date is null or r.rip_start <= f.next_exe_date)
 	 
@@ -916,8 +919,8 @@ proc sql;
       inner join sasdata1.ssr as r
          on p.BEN_IDT_ANO = r.BEN_IDT_ANO
         /* Ensure admission start is before index and end overlaps within 365 days prior */
-        and r.EXE_SOI_DTD < p.DT_FIRST_AD
-        and r.EXE_SOI_DTF > p.DT_FIRST_AD - 365
+        and r.EXE_SOI_DTD <= p.DT_FIRST_AD
+        and r.EXE_SOI_DTF >= p.DT_FIRST_AD - 365
       group by p.BEN_IDT_ANO
    ) as r
       on f.BEN_IDT_ANO = r.BEN_IDT_ANO;
@@ -944,8 +947,8 @@ proc sql;
       inner join sasdata1.mco as r
          on p.BEN_IDT_ANO = r.BEN_IDT_ANO
         /* Ensure admission start is before index and end overlaps within 365 days prior */
-        and r.EXE_SOI_DTD < p.DT_FIRST_AD
-        and r.EXE_SOI_DTF > p.DT_FIRST_AD - 365
+        and r.EXE_SOI_DTD <= p.DT_FIRST_AD
+        and r.EXE_SOI_DTF >= p.DT_FIRST_AD - 365
       group by p.BEN_IDT_ANO
    ) as r
       on f.BEN_IDT_ANO = r.BEN_IDT_ANO;
@@ -972,8 +975,8 @@ proc sql;
       inner join sasdata1.had as r
          on p.BEN_IDT_ANO = r.BEN_IDT_ANO
         /* Ensure admission start is before index and end overlaps within 365 days prior */
-        and (r.EXE_SOI_DTD) < p.DT_FIRST_AD
-        and (r.EXE_SOI_DTF) > p.DT_FIRST_AD - 365
+        and (r.EXE_SOI_DTD) <= p.DT_FIRST_AD
+        and (r.EXE_SOI_DTF) >= p.DT_FIRST_AD - 365
       group by p.BEN_IDT_ANO
    ) as r
       on f.BEN_IDT_ANO = r.BEN_IDT_ANO;
@@ -1005,8 +1008,8 @@ proc sql;
       from (select distinct BEN_IDT_ANO, DT_FIRST_AD from work.prs_ald_orc_ssr_mco_had_before) as p
       inner join sasdata1.rip as sub
          on p.BEN_IDT_ANO = sub.BEN_IDT_ANO
-        and sub.rip_start < p.DT_FIRST_AD
-        and sub.rip_end > p.DT_FIRST_AD - 365
+        and sub.rip_start <= p.DT_FIRST_AD
+        and sub.rip_end >= p.DT_FIRST_AD - 365
       group by p.BEN_IDT_ANO
    ) as r
       on f.BEN_IDT_ANO = r.BEN_IDT_ANO;
