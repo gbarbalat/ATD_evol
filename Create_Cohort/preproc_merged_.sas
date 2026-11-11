@@ -144,7 +144,6 @@ data work.prs_intervals;
    format next_exe_date DATE9.; /* You can also use YYMMDD10. if you prefer YYYY-MM-DD */
 run;
 
-
 /* check for other meds in prs_rx */
 proc sql;
    create table work.prs_meds as
@@ -166,9 +165,9 @@ proc sql;
       f.RGM_COD,
       f.RGM_GRG_COD,
 
-	  /* Cumulative count of distinct prior prescription dates for Anxiolytics / Hypnotics and Other Meds */
-      coalesce(r.CumulAnx, 0) as CumulAnx,
-      coalesce(r.CumulOtherMeds, 0) as CumulOtherMeds,
+	  /* Cumulative count of distinct prior prescription dates for Anxiolytics / Hypnotics and Other Meds within the window */
+      coalesce(count(distinct case when r.is_anx = 1 then r.exe_date end), 0) as CumulAnx,
+      coalesce(count(distinct case when r.is_other = 1 then r.exe_date end), 0) as CumulOtherMeds,
 	  
       /* Check for Anxiolytics / Hypnotics */
       case when coalesce(max(r.is_anx), 0) = 1 then 'Yes' else 'No' end as HasAnx,
@@ -181,14 +180,6 @@ proc sql;
       select 
          BEN_IDT_ANO,
          datepart(EXE_SOI_DTD) as exe_date,
-		 count(distinct case when r.PHA_ATC_CLA like 'N05B%' or r.PHA_ATC_CLA like 'N05C%' or PHA_ATC_CLA like 'N05AA%' then r.EXE_SOI_DTD end) as CumulAnx,
-		 count(distinct case when not (PHA_ATC_CLA like 'N05A%' or PHA_ATC_CLA like 'N05B%' or PHA_ATC_CLA like 'N05C%' /* anxio hypn AP Li*/
-		 		 or PHA_ATC_CLA like 'N06A%' /* antidepressants */
-				 or PHA_ATC_CLA like 'N06BA%' /* stimulants */
-                 or PHA_ATC_CLA like 'N03A%'  /* antiepileptics */
-		 )then r.EXE_SOI_DTD end) as CumulOtherMeds,
-
-		 
          case when PHA_ATC_CLA like 'N05B%' or PHA_ATC_CLA like 'N05C%'  or PHA_ATC_CLA like 'N05AA%' then 1 else 0 end as is_anx,
          case when not (PHA_ATC_CLA like 'N05A%' or PHA_ATC_CLA like 'N05B%' or PHA_ATC_CLA like 'N05C%' /* anxio hypn AP Li*/
 		 		 or PHA_ATC_CLA like 'N06A%' /* antidepressants */
@@ -201,7 +192,7 @@ proc sql;
      and r.exe_date >= f.EXE_SOI_DTD
      and r.exe_date <= f.EXE_SOI_DTD + &grace 
 	 and (f.next_exe_date is null or r.exe_date <= f.next_exe_date) 
-     
+      
    group by 
       f.BEN_IDT_ANO,
       f.DT_FIRST_AD,
@@ -238,7 +229,6 @@ proc sql;
       f.PHA_ATC_LIB, 
       f.net_qsn,	  
 	  f.PHA_FRM_LIB,
-
       f.PSP_SPE_COD,
       f.PSP_ACT_NAT,
       f.RGO_ASU_NAT,
@@ -246,9 +236,8 @@ proc sql;
       f.RGM_GRG_COD,
 	  f.HasAnx,
 	  f.HasOtherMeds,
-
 	  f.CumulAnx,
-	  f.CumulOtherMeds
+	  f.CumulOtherMeds,
       
       /* Check for ATMPInv */
       case when coalesce(max(r.is_ATMPInv), 0) = 1 then 'Yes' else 'No' end as HasATMPInv,
@@ -256,20 +245,19 @@ proc sql;
       /* Check for AAH */
       case when coalesce(max(r.is_AAH), 0) = 1 then 'Yes' else 'No' end as HasAAH,
 
-	  /* CUmulated visits */
-	  coalesce(r.CumulGP, 0) as CumulGP,
-	  coalesce(r.CumulPsych, 0) as CumulPsych,
-	  coalesce(r.CumulOtherMed, 0) as CumulOtherMed,
-	  coalesce(r.CumulNonMed, 0) as CumulMed,
+	  /* Cumulated visits calculated over the window */
+	  coalesce(count(distinct case when r.is_GP = 1 then r.exe_date end), 0) as CumulGP,
+	  coalesce(count(distinct case when r.is_Psych = 1 then r.exe_date end), 0) as CumulPsych,
+	  coalesce(count(distinct case when r.is_OtherMed = 1 then r.exe_date end), 0) as CumulOtherMed,
+	  coalesce(count(distinct case when r.is_SeenNonMed = 1 then r.exe_date end), 0) as CumulNonMed,
 
-
-	   /* Check for Seen by */
+	  /* Check for Seen by */
       case when coalesce(max(r.is_GP), 0) = 1 then 'Yes' else 'No' end as SeenGP,
       case when coalesce(max(r.is_Psych), 0) = 1 then 'Yes' else 'No' end as SeenPsych,
 	  case when coalesce(max(r.is_OtherMed), 0) = 1 then 'Yes' else 'No' end as SeenOtherMed,
 	  case when coalesce(max(r.is_SeenNonMed), 0) = 1 then 'Yes' else 'No' end as SeenNonMed,
 
-	   /* Check for Pregnancy */
+	  /* Check for Pregnancy */
       case when coalesce(max(r.is_Pregnant), 0) = 1 then 'Yes' else 'No' end as Pregnant
 
    from work.prs_meds as f
@@ -278,11 +266,6 @@ proc sql;
          BEN_IDT_ANO,
          datepart(EXE_SOI_DTD) as exe_date,
 
-		 count(distinct case when PSE_SPE_COD=1 or PSE_SPE_COD=22 or PSE_SPE_COD=23 then r.EXE_SOI_DTD end) as CumulGP,
-		 count(distinct case when PSE_SPE_COD=33 or PSE_SPE_COD=17 or PSE_SPE_COD=75 then r.EXE_SOI_DTD end) as CumulPsych,
-		 count(distinct case when PSE_SPE_COD not in (0,1,22,23,17,33,75)  then r.EXE_SOI_DTD end) as CumulOtherMed,
-		 count(distinct case when PSE_SPE_COD=0 then r.EXE_SOI_DTD end) as CumulNonMed,
-
 		 case when PSE_SPE_COD=1 or PSE_SPE_COD=22 or PSE_SPE_COD=23 then 1 else 0 end as is_GP,
 		 case when PSE_SPE_COD=33 or PSE_SPE_COD=17 or PSE_SPE_COD=75  then 1 else 0 end as is_Psych,
          case when PSE_SPE_COD not in (0,1,22,23,17,33,75) then 1 else 0 end as is_OtherMed,
@@ -290,15 +273,15 @@ proc sql;
 
          case when RGO_ASU_NAT in (40,80) then 1 else 0 end as is_ATMPInv,
          case when (RGM_COD in (180,181, 188, 189) and RGM_GRG_COD=1) then 1 else 0 end as is_AAH,
-		 
 		 case when PRS_GRS_DTD is not null then 1 else 0 end as is_Pregnant
-		 from sasdata1.prs_au
+		 
+         from sasdata1.prs_au
    ) as r
       on f.BEN_IDT_ANO = r.BEN_IDT_ANO
      and r.exe_date >= f.EXE_SOI_DTD
      and r.exe_date <= f.EXE_SOI_DTD + &grace 
 	 and (f.next_exe_date is null or r.exe_date <= f.next_exe_date) 
-	 	 
+	 	  
    group by 
       f.BEN_IDT_ANO,
       f.DT_FIRST_AD,
@@ -1114,7 +1097,7 @@ quit;
 
 
 /* check CRTO databses and create column Prev_Psy_Dx_Rx (No, Latest Year) + Prev_Psy_Adm (No, Latest Year) */
-/* 1. Extract unique patients and their first admission year */
+/* 1. Extract unique patients and their first prescription date */
 proc sql noprint;
    create table work.patient_index as
    select distinct BEN_IDT_ANO, DT_FIRST_AD
