@@ -165,7 +165,11 @@ proc sql;
       f.RGO_ASU_NAT,
       f.RGM_COD,
       f.RGM_GRG_COD,
-      
+
+	  /* Cumulative count of distinct prior prescription dates for Anxiolytics / Hypnotics and Other Meds */
+      coalesce(r.CumulAnx, 0) as CumulAnx,
+      coalesce(r.CumulOtherMeds, 0) as CumulOtherMeds,
+	  
       /* Check for Anxiolytics / Hypnotics */
       case when coalesce(max(r.is_anx), 0) = 1 then 'Yes' else 'No' end as HasAnx,
       
@@ -177,6 +181,14 @@ proc sql;
       select 
          BEN_IDT_ANO,
          datepart(EXE_SOI_DTD) as exe_date,
+		 count(distinct case when r.PHA_ATC_CLA like 'N05B%' or r.PHA_ATC_CLA like 'N05C%' or PHA_ATC_CLA like 'N05AA%' then r.EXE_SOI_DTD end) as CumulAnx,
+		 count(distinct case when not (PHA_ATC_CLA like 'N05A%' or PHA_ATC_CLA like 'N05B%' or PHA_ATC_CLA like 'N05C%' /* anxio hypn AP Li*/
+		 		 or PHA_ATC_CLA like 'N06A%' /* antidepressants */
+				 or PHA_ATC_CLA like 'N06BA%' /* stimulants */
+                 or PHA_ATC_CLA like 'N03A%'  /* antiepileptics */
+		 )then r.EXE_SOI_DTD end) as CumulOtherMeds,
+
+		 
          case when PHA_ATC_CLA like 'N05B%' or PHA_ATC_CLA like 'N05C%'  or PHA_ATC_CLA like 'N05AA%' then 1 else 0 end as is_anx,
          case when not (PHA_ATC_CLA like 'N05A%' or PHA_ATC_CLA like 'N05B%' or PHA_ATC_CLA like 'N05C%' /* anxio hypn AP Li*/
 		 		 or PHA_ATC_CLA like 'N06A%' /* antidepressants */
@@ -234,12 +246,22 @@ proc sql;
       f.RGM_GRG_COD,
 	  f.HasAnx,
 	  f.HasOtherMeds,
+
+	  f.CumulAnx,
+	  f.CumulOtherMeds
       
       /* Check for ATMPInv */
       case when coalesce(max(r.is_ATMPInv), 0) = 1 then 'Yes' else 'No' end as HasATMPInv,
       
       /* Check for AAH */
       case when coalesce(max(r.is_AAH), 0) = 1 then 'Yes' else 'No' end as HasAAH,
+
+	  /* CUmulated visits */
+	  coalesce(r.CumulGP, 0) as CumulGP,
+	  coalesce(r.CumulPsych, 0) as CumulPsych,
+	  coalesce(r.CumulOtherMed, 0) as CumulOtherMed,
+	  coalesce(r.CumulNonMed, 0) as CumulMed,
+
 
 	   /* Check for Seen by */
       case when coalesce(max(r.is_GP), 0) = 1 then 'Yes' else 'No' end as SeenGP,
@@ -255,6 +277,12 @@ proc sql;
       select 
          BEN_IDT_ANO,
          datepart(EXE_SOI_DTD) as exe_date,
+
+		 count(distinct case when PSE_SPE_COD=1 or PSE_SPE_COD=22 or PSE_SPE_COD=23 then r.EXE_SOI_DTD end) as CumulGP,
+		 count(distinct case when PSE_SPE_COD=33 or PSE_SPE_COD=17 or PSE_SPE_COD=75 then r.EXE_SOI_DTD end) as CumulPsych,
+		 count(distinct case when PSE_SPE_COD not in (0,1,22,23,17,33,75)  then r.EXE_SOI_DTD end) as CumulOtherMed,
+		 count(distinct case when PSE_SPE_COD=0 then r.EXE_SOI_DTD end) as CumulNonMed,
+
 		 case when PSE_SPE_COD=1 or PSE_SPE_COD=22 or PSE_SPE_COD=23 then 1 else 0 end as is_GP,
 		 case when PSE_SPE_COD=33 or PSE_SPE_COD=17 or PSE_SPE_COD=75  then 1 else 0 end as is_Psych,
          case when PSE_SPE_COD not in (0,1,22,23,17,33,75) then 1 else 0 end as is_OtherMed,
@@ -289,7 +317,9 @@ proc sql;
       f.RGM_COD,
       f.RGM_GRG_COD,
 	  f.HasAnx,
-	  f.HasOtherMeds;
+	  f.HasOtherMeds,
+	  f.CumulAnx,
+	  f.CumulOtherMeds;
 quit;
 
 
@@ -325,6 +355,12 @@ proc sql;
 	  f.SeenOtherMed,
 	  f.SeenNonMed,
 	  f.Pregnant,
+	  f.CumulAnx,
+	  f.CumulOtherMeds,
+	  f.CumulGP,
+	  f.CumulPsych,
+	  f.CumulOtherMed, 
+	  f.CumulNonMed,
       
       /* Check for ALD Psy */
       case when coalesce(max(r.is_ALD23), 0) = 1 then 'Yes' else 'No' end as HasALDPsy,
@@ -373,7 +409,13 @@ proc sql;
 	  f.SeenPsych,
 	  f.SeenOtherMed,
 	  f.SeenNonMed,
-	  f.Pregnant;
+	  f.Pregnant,	  
+	  f.CumulAnx,
+	  f.CumulOtherMeds,
+	  f.CumulGP,
+	  f.CumulPsych,
+	  f.CumulOtherMed, 
+	  f.CumulNonMed;
 quit;
 
 
@@ -415,6 +457,12 @@ proc sql;
 	  f.Pregnant,
       f.HasALDPsy,
       f.HasALDNonPsy,
+	  f.CumulAnx,
+	  f.CumulOtherMeds,
+	  f.CumulGP,
+	  f.CumulPsych,
+	  f.CumulOtherMed, 
+	  f.CumulNonMed,
       
       /* Check for C2S */
       case when coalesce(max(r.is_C2S), 0) = 1 then 'Yes' else 'No' end as HasC2S
@@ -460,7 +508,13 @@ proc sql;
       f.SeenNonMed,
 	  f.Pregnant,
       f.HasALDPsy,
-      f.HasALDNonPsy;
+      f.HasALDNonPsy,
+	  f.CumulAnx,
+	  f.CumulOtherMeds,
+	  f.CumulGP,
+	  f.CumulPsych,
+	  f.CumulOtherMed, 
+	  f.CumulNonMed;
 quit;
 
 
@@ -526,7 +580,13 @@ proc sql;
 	  f.Pregnant,
       f.HasALDPsy,
       f.HasALDNonPsy,
-      f.HasC2S;
+      f.HasC2S,
+	  f.CumulAnx,
+	  f.CumulOtherMeds,
+	  f.CumulGP,
+	  f.CumulPsych,
+	  f.CumulOtherMed, 
+	  f.CumulNonMed;
 quit;
 
 
@@ -595,7 +655,13 @@ proc sql;
       f.HasALDPsy,
       f.HasALDNonPsy,
       f.HasC2S,
-	  f.SSR_Length;
+	  f.SSR_Length,
+	  f.CumulAnx,
+	  f.CumulOtherMeds,
+	  f.CumulGP,
+	  f.CumulPsych,
+	  f.CumulOtherMed, 
+	  f.CumulNonMed;
 quit;
 
 
@@ -666,7 +732,13 @@ proc sql;
       f.HasALDNonPsy,
       f.HasC2S,
 	  f.SSR_Length,
-	  f.MCO_Length;
+	  f.MCO_Length,
+	  f.CumulAnx,
+	  f.CumulOtherMeds,
+	  f.CumulGP,
+	  f.CumulPsych,
+	  f.CumulOtherMed, 
+	  f.CumulNonMed;
 quit;
 
 
@@ -755,7 +827,13 @@ proc sql;
       f.HasC2S,
 	  f.SSR_Length,
 	  f.MCO_Length,
-	  f.HAD_Length;
+	  f.HAD_Length,
+	  f.CumulAnx,
+	  f.CumulOtherMeds,
+	  f.CumulGP,
+	  f.CumulPsych,
+	  f.CumulOtherMed, 
+	  f.CumulNonMed;
 quit;
 
 proc sort data=work.prs_ald_orc_hosp_after nodupkey;
@@ -773,7 +851,11 @@ proc sql;
    create table work.prs_meds_before as
    select 
       f.*,
-      
+
+	  /* Cumulative count of distinct prior prescription dates for Anxiolytics / Hypnotics and Other Meds */
+      coalesce(r.CumulPrev_Anx, 0) as CumulPrev_Anx,
+	  coalesce(r.CumulPrev_Meds, 0) as CumulPrev_Meds,
+
       /* Check for Anxiolytics / Hypnotics */
       case when coalesce(r.has_anx, 0) = 1 then 'Yes' else 'No' end as Prev_Anx,
       
@@ -784,6 +866,9 @@ proc sql;
    left join (
       select 
          p.BEN_IDT_ANO,
+		 count(distinct case when r.PHA_ATC_CLA like 'N05B%' or r.PHA_ATC_CLA like 'N05C%' then r.EXE_SOI_DTD end) as CumulPrev_Anx,
+		 count(distinct case when not (r.PHA_ATC_CLA like 'N05B%' or r.PHA_ATC_CLA like 'N05C%') then r.EXE_SOI_DTD end) as CumulPrev_Meds,
+		 
          max(case when r.PHA_ATC_CLA like 'N05B%' or r.PHA_ATC_CLA like 'N05C%' then 1 else 0 end) as has_anx,
          max(case when not (r.PHA_ATC_CLA like 'N05B%' or r.PHA_ATC_CLA like 'N05C%') then 1 else 0 end) as has_other
       from (select distinct BEN_IDT_ANO, DT_FIRST_AD from work.prs_intervals) as p
@@ -809,7 +894,13 @@ proc sql;
       /* Check for AAH */
       case when coalesce(r.has_AAH, 0) = 1 then 'Yes' else 'No' end as Prev_AAH,
 
-      /* Check for Seen by */
+      /* Check for Seen by, and count different dates */
+      coalesce(r.CumulPrev_SeenGP, 0) as CumulPrev_SeenGP,
+      coalesce(r.CumulPrev_SeenPsych, 0) as CumulPrev_SeenPsych,
+      coalesce(r.CumulPrev_SeenOtherMed, 0) as CumulPrev_SeenOtherMed,
+      coalesce(r.CumulPrev_SeenNonMed, 0) as CumulPrev_SeenNonMed,
+
+	  
       case when coalesce(r.has_GP, 0) = 1 then 'Yes' else 'No' end as Prev_SeenGP,
       case when coalesce(r.has_Psych, 0) = 1 then 'Yes' else 'No' end as Prev_SeenPsych,
       case when coalesce(r.has_OtherMed, 0) = 1 then 'Yes' else 'No' end as Prev_SeenOtherMed,
@@ -822,6 +913,12 @@ proc sql;
    left join (
       select 
          p.BEN_IDT_ANO,		 
+		 
+		 count(distinct case when r.PSE_SPE_COD in (1, 22, 23) then r.EXE_SOI_DTD end) as CumulPrev_SeenGP,
+		 count(distinct case when r.PSE_SPE_COD in (33, 17, 75) then r.EXE_SOI_DTD end) as CumulPrev_SeenPsych,
+		 count(distinct case when r.PSE_SPE_COD not in (0,1,22,23,17,33,75) then r.EXE_SOI_DTD end) as CumulPrev_SeenOtherMed,
+		 count(distinct case when r.PSE_SPE_COD = 0 then r.EXE_SOI_DTD end) as CumulPrev_SeenNonMed,
+
          max(case when r.PSE_SPE_COD in (1, 22, 23) then 1 else 0 end) as has_GP,
          max(case when r.PSE_SPE_COD in (33, 17, 75) then 1 else 0 end) as has_Psych,
          max(case when r.PSE_SPE_COD not in (0,1,22,23,17,33,75) then 1 else 0 end) as has_OtherMed,
@@ -1263,12 +1360,8 @@ EXE_SOI_DTD = DT_FIRST_AD.
 Create Adm_Psy_Cur where for each BEN_IDT_ANO, if RIP_0_Length or RIP_2_Length is >=0,
 then you put 1 in the column and it gets repeated till the end.
 Create Adm_Oth_Cur where for each BEN_IDT_ANO, if MCO_Length or SSR_Length or HAD_Length is > 0,
-then you put 1 in the column and it gets repeated till the end.
-Apply the following cumsum principle: for each BEN_IDT_ANO and each EXE_SOI_DTD, if Value is Yes, 
-the value of the created column is incremented by 1 (from 0) to
-HasAnx = Yes (create CumulAnx)
-HasOtherMeds=Yes (create CumulOtherMeds)
-SeenPsych=Yes (CumulPsych) */
+then you put 1 in the column and it gets repeated till the end*/
+
 /* 1. Ensure data is properly sorted by patient and date */
 proc sort data=work.PRS_ALD_ORC_HOSP_GEO_AFTER;
    by BEN_IDT_ANO EXE_SOI_DTD;
@@ -1279,16 +1372,13 @@ data work.PRS_ALD_ORC_HOSP_GEO_PRESC_AFTER;
    set work.PRS_ALD_ORC_HOSP_GEO_AFTER;
    by BEN_IDT_ANO EXE_SOI_DTD;
    
-   retain First_Prescriber Adm_Psy_Cur Adm_Oth_Cur CumulAnx CumulOtherMeds CumulPsych Lead_Prescriber _prev_psp;
+   retain First_Prescriber Adm_Psy_Cur Adm_Oth_Cur Lead_Prescriber _prev_psp;
    
    /* Reset tracking variables at the start of each new patient */
    if first.BEN_IDT_ANO then do;
 	call missing(First_Prescriber, Lead_Prescriber, _prev_psp);
 	  Adm_Psy_Cur = 0;
       Adm_Oth_Cur = 0;
-      CumulAnx = 0;
-      CumulOtherMeds = 0;
-      CumulPsych = 0;
    end;
    else do;
       Lead_Prescriber = _prev_psp;
@@ -1309,11 +1399,6 @@ data work.PRS_ALD_ORC_HOSP_GEO_PRESC_AFTER;
       (not missing(SSR_Length) and SSR_Length > 0) or 
       (not missing(HAD_Length) and HAD_Length > 0) then 
       Adm_Oth_Cur = 1;
-      
-   /* Cumulative sum counters for Yes flags */
-   if upcase(HasAnx) = 'YES' then CumulAnx + 1;
-   if upcase(HasOtherMeds) = 'YES' then CumulOtherMeds + 1;
-   if upcase(SeenPsych) = 'YES' then CumulPsych + 1;
 run;
 
 
