@@ -57,7 +57,7 @@ data work.merged_checks_recode3;
             stop_found = 1;
         end;
         else if last.ben_idt_ano then do;
-            calc_stop = stop;
+            calc_stop = start;
             stop_found = 1;
         end;
     end;
