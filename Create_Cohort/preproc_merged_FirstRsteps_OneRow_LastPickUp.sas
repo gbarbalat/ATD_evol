@@ -128,7 +128,7 @@ proc sort data=work.merged_checks_recode4; by ben_idt_ano; run;
 proc sort data=work.merged_checks_recode5; by ben_idt_ano; run;
 proc sort data=work.psy_concat; by ben_idt_ano; run;
 
-data sasdata1.merged_checks_recode6;
+data sasdata1.merged_checks_recode6_LastPickUp;
     merge work.merged_checks_recode4 work.merged_checks_recode5 work.psy_concat;
     by ben_idt_ano;
 run;
