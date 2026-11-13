@@ -1,7 +1,7 @@
 /* can't do this on R as files are too heavy ...*/ 
 %let grace = 45;
 %let LM_start = 0;
-%let LM_end = 365;
+%let LM_end = 30;
 
 
 /* =========================================================================
