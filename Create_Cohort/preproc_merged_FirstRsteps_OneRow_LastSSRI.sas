@@ -53,9 +53,6 @@ data work.merged_checks_recode3;
     if stop_found = 0 then do;
         keep_row = 1;
 
-        /* stop at first switch class
-        if (stop - start) > &grace or event = 'ATD_' or event = 'SWI_' then do; */
-
         /* stop at first switch */
         if (stop - start) > &grace or event = 'ATD_' or event = 'SWI_' then do;
             calc_stop = start; /* + &grace */
@@ -133,7 +130,7 @@ proc sort data=work.merged_checks_recode4; by ben_idt_ano; run;
 proc sort data=work.merged_checks_recode5; by ben_idt_ano; run;
 proc sort data=work.psy_concat; by ben_idt_ano; run;
 
-data sasdata1.merged_checks_recode6_LMend;
+data sasdata1.merged_checks_recode6_LastSSRI;
     merge work.merged_checks_recode4 work.merged_checks_recode5 work.psy_concat;
     by ben_idt_ano;
 run;
