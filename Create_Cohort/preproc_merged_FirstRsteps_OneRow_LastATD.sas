@@ -27,9 +27,24 @@ data work.merged_checks_recode2;
     set work.merged_checks_recode;
     by BEN_IDT_ANO start;
     
+    /* Calculate grace_adm for each row based on hospital/admission lengths */
+    /* Using max() safely handles cases where multiple length columns are > 0 */
+    length_hosp = max(
+        coalesce(MCO_Length, 0), 
+        coalesce(SSR_Length, 0), 
+        coalesce(HAD_Length, 0), 
+        coalesce(RIP_0_Length, 0)
+    );
+    
+    if length_hosp > 0 then 
+		grace_adm = min(&grace + length_hosp, stop - start);    
+	else 
+        grace_adm = &grace;
+
+    /* Existing logic for the last row per patient */
     if last.BEN_IDT_ANO then do;
         /* Correct SAS syntax for finding the minimum across columns */
-        next_exe_date = min(BEN_DCD_DTE, MAX_TRT_DTD, DT_FIRST_AD + 365);
+        next_exe_date = min(BEN_DCD_DTE, DT_FIRST_AD + 365);
         stop = next_exe_date - DT_FIRST_AD;
     end;
 run;
@@ -54,8 +69,8 @@ data work.merged_checks_recode3;
         keep_row = 1;
 
         /* stop at first switch */
-        if (stop - start) > &grace  or event = 'SWI_' then do; /* or event = 'ATD_' */
-            calc_stop = start; /* + &grace */
+        if (stop - start) > grace_adm  or event = 'SWI_' then do; /* or event = 'ATD_' */ /* + &grace */
+            calc_stop = start; 
             stop_found = 1;
         end;
         else if last.ben_idt_ano then do;
