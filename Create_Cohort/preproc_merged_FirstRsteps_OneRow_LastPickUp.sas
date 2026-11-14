@@ -97,8 +97,9 @@ data work.merged_checks_recode4;
 	Prev_SeenPsych Prev_SeenOtherMed Prev_SeenGP Prev_SeenNonMed 
 	Prev_Meds Prev_Anx
 	CumulPrev_SeenNonMed CumulPrev_SeenOtherMed CumulPrev_SeenGP CumulPrev_SeenPsych CumulPrev_Meds CumulPrev_Anx
+	event
 	;
-    /* drop event psy_meds calc_stop start stop stop_found keep_row; */
+    /* drop psy_meds calc_stop start stop stop_found keep_row; */
 run;
 
 /* Extract calculated stop */
