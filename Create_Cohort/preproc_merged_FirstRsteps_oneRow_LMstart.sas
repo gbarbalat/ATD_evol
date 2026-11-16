@@ -82,7 +82,7 @@ run;
 
 /* Extract patient-level summary (first values for covar, plus calculated stop) */
 data work.merged_checks_recode4;
-    set work.merged_checks_recode3 (where=(start=&LM_start));
+    set work.merged_checks_recode3 (where=(start=0));
     by ben_idt_ano start;
     
     /* Automatically takes the first. value for all columns due to data step behavior */
