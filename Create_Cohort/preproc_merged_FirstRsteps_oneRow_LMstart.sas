@@ -1,7 +1,8 @@
 /* can't do this on R as files are too heavy ...*/ 
 %let grace = 45;
-%let LM_start = 0;
-%let LM_end = 30;
+%let LM_start_start = 0;
+%let LM_start_end = 45;
+%let LM_end = 365;
 
 
 /* =========================================================================
@@ -137,6 +138,13 @@ data work.psy_concat;
     if last.ben_idt_ano;
     keep ben_idt_ano unique_psy_meds;
 run;
+
+
+
+/* collect td var */
+
+
+
 
 
 /* Merge all three dbs */
