@@ -126,7 +126,7 @@
 
 		data work.had_extract_all;
 		   set work.had_extract_all;
-		   where diff_days >= -366 and diff_days <= 366;
+		   where diff_days <= 366; /* diff_days >= -366 and  */
 		run;
 
        %next_year:
