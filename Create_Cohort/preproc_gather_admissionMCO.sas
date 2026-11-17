@@ -125,7 +125,8 @@
 
 		data work.mco_extract_all;
 		   set work.mco_extract_all;
-		   where diff_days >= -366 and diff_days <= 366;
+		   where diff_days <= 366; /* diff_days >= -366 and  */
+		   
 		run;
 
        %next_mco_year:
