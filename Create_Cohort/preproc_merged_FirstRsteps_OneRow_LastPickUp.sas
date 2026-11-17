@@ -93,7 +93,7 @@ data work.merged_checks_recode4;
 	BEN_AMA_COD Prev_Pregnant BEN_DCD_DTE MAX_TRT_DTD
 	Prev_C2S Prev_ATMPInv Prev_AAH Prev_Anx Prev_ALDPsy Prev_ALDNonPsy
 	AGE_HAD_before AGE_MCO_before AGE_RIP_before AGE_SSR_before Prev_HAD Prev_MCO Prev_RIP_0 Prev_RIP_2 Prev_SSR
-	Prev_Psy_Dx_Rx Prev_Psy_Adm
+	tps_: psy_:	
 	Prev_SeenPsych Prev_SeenOtherMed Prev_SeenGP Prev_SeenNonMed 
 	Prev_Meds Prev_Anx
 	CumulPrev_SeenNonMed CumulPrev_SeenOtherMed CumulPrev_SeenGP CumulPrev_SeenPsych CumulPrev_Meds CumulPrev_Anx
