@@ -1114,7 +1114,7 @@ proc sql;
    inner join sasdata1.carto_dep as c
       on p.BEN_IDT_ANO = c.BEN_IDT_ANO
    where (c.DEP_DGF_PSY_BSE > 0 or c.DEP_OQN_PSY_BSE > 0)
-     and c.year < year(p.DT_FIRST_AD) -1 /* -1 otherwise may document information post start */
+     and c.year < year(p.DT_FIRST_AD) 
    group by p.BEN_IDT_ANO;
 quit;
 
@@ -1130,58 +1130,54 @@ proc sql;
 quit;
 
 /* same for carto_ind */
-data sasdata1.carto_ind;
-   set sasdata1.carto_ind;
-   
-   /* Define arrays for all columns starting with PSY_ and TPS_ */
-   array psy_vars[*] PSY_:;
-   array tps_vars[*] TPS_:;
-   
-   has_psy_flag = 0;
-   
-   /* Check if any PSY_ column is > 0 */
-   do i = 1 to dim(psy_vars);
-      if psy_vars[i] > 0 then has_psy_flag = 1;
-   end;
-   
-   /* Check if any TPS_ column is > 0 */
-   do i = 1 to dim(tps_vars);
-      if tps_vars[i] > 0 then has_psy_flag = 1;
-   end;
-   
-   drop i;
-run;
-
-
-/* 1. Extract unique patients and their first admission year */
+/* 1. Retrieve all TPS_ and PSY_ column names from sasdata1.carto_ind */
 proc sql noprint;
-   create table work.patient_index_ind as
-   select distinct BEN_IDT_ANO, DT_FIRST_AD
-   from work.prs_ald_orc_hosp_crto_DEP_before;
+    select name into :var_list separated by ' '
+    from dictionary.columns
+    where libname = 'SASDATA1'
+      and memname = 'CARTO_IND'
+      and (upcase(name) like 'TPS_%' or upcase(name) like 'PSY_%');
 quit;
 
-/* 2. Pre-aggregate the max prior year per patient from carto_ind */
-proc sql;
-   create table work.carto_ind_filtered as
-   select 
-      p.BEN_IDT_ANO,
-      put(max(c.year), 4.) as max_ind_year
-   from work.patient_index_ind as p
-   inner join sasdata1.carto_ind as c
-      on p.BEN_IDT_ANO = c.BEN_IDT_ANO
-   where c.has_psy_flag = 1
-     and c.year < year(p.DT_FIRST_AD) -1 /* -1 otherwise may document information post start */
-   group by p.BEN_IDT_ANO;
-quit;
+/* 2. Build the output table directly in PROC SQL with explicit 'No' fallback */
+%macro build_carto_max_year;
+    %let count = %sysfunc(countw(&var_list.));
 
-/* 3. Left join the result back and assign 'No' as the default */
+    proc sql;
+        create table work.carto_ind_last_year as
+        select 
+            r.BEN_IDT_ANO
+            %do i = 1 %to &count.;
+                %let v = %scan(&var_list., &i.);
+                , case 
+                    when max(case when c.&v. = 1 then c.year else . end) is not null 
+                        then strip(put(max(case when c.&v. = 1 then c.year else . end), 4.))
+                    else 'No'
+                  end as &v. length=4
+            %end;
+        from (
+            select distinct 
+                BEN_IDT_ANO, 
+                year(DT_FIRST_AD) as ref_year
+            from work.prs_ald_orc_hosp_crto_DEP_before
+        ) as r
+        left join sasdata1.carto_ind as c
+            on r.BEN_IDT_ANO = c.BEN_IDT_ANO
+            and c.year < r.ref_year
+        group by r.BEN_IDT_ANO;
+    quit;
+%mend build_carto_max_year;
+
+%build_carto_max_year;
+
+/* 3. Left join the result to the main db */
 proc sql;
    create table work.prs_ald_orc_hosp_crto_before as
    select 
       f.*,
-      coalesce(c.max_ind_year, 'No') as Prev_Psy_Dx_Rx
+      c.*
    from work.prs_ald_orc_hosp_crto_DEP_before as f
-   left join work.carto_ind_filtered as c
+   left join work.carto_ind_last_year as c
       on f.BEN_IDT_ANO = c.BEN_IDT_ANO;
 quit;
 
