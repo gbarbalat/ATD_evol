@@ -89,19 +89,19 @@ data work.merged_checks_recode4;
     /* Automatically takes the first. value for all columns due to data step behavior */
     if first.ben_idt_ano;
 
-	/* keep prev variables */ 
+		/* keep prev variables */ 
 	keep ben_idt_ano season_year region BEN_RES_DPT FDEP20_quint P20_POP Nb_GP Nb_Psych 
 	DT_FIRST_AD First_Prescriber
 	BEN_AMA_COD Prev_Pregnant BEN_DCD_DTE MAX_TRT_DTD
 	Prev_C2S Prev_ATMPInv Prev_AAH Prev_Anx Prev_ALDPsy Prev_ALDNonPsy
 	AGE_HAD_before AGE_MCO_before AGE_RIP_before AGE_SSR_before Prev_HAD Prev_MCO Prev_RIP_0 Prev_RIP_2 Prev_SSR
-	Prev_Psy_Dx_Rx Prev_Psy_Adm
+	tps_: psy_:	
 	Prev_SeenPsych Prev_SeenOtherMed Prev_SeenGP Prev_SeenNonMed 
 	Prev_Meds Prev_Anx
 	CumulPrev_SeenNonMed CumulPrev_SeenOtherMed CumulPrev_SeenGP CumulPrev_SeenPsych CumulPrev_Meds CumulPrev_Anx
 	event
 	;
-    /* drop  psy_meds calc_stop start stop stop_found keep_row; */
+    /* drop psy_meds calc_stop start stop stop_found keep_row; */
 run;
 
 /* Extract calculated stop */
