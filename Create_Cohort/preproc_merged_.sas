@@ -1114,7 +1114,7 @@ proc sql;
    inner join sasdata1.carto_dep as c
       on p.BEN_IDT_ANO = c.BEN_IDT_ANO
    where (c.DEP_DGF_PSY_BSE > 0 or c.DEP_OQN_PSY_BSE > 0)
-     and c.year < year(p.DT_FIRST_AD)
+     and c.year < year(p.DT_FIRST_AD) -1 /* -1 otherwise may document information post start */
    group by p.BEN_IDT_ANO;
 quit;
 
@@ -1170,7 +1170,7 @@ proc sql;
    inner join sasdata1.carto_ind as c
       on p.BEN_IDT_ANO = c.BEN_IDT_ANO
    where c.has_psy_flag = 1
-     and c.year < year(p.DT_FIRST_AD)
+     and c.year < year(p.DT_FIRST_AD) -1 /* -1 otherwise may document information post start */
    group by p.BEN_IDT_ANO;
 quit;
 
