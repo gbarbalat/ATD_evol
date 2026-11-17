@@ -887,10 +887,7 @@ proc sql;
       case when coalesce(r.has_GP, 0) = 1 then 'Yes' else 'No' end as Prev_SeenGP,
       case when coalesce(r.has_Psych, 0) = 1 then 'Yes' else 'No' end as Prev_SeenPsych,
       case when coalesce(r.has_OtherMed, 0) = 1 then 'Yes' else 'No' end as Prev_SeenOtherMed,
-      case when coalesce(r.has_SeenNonMed, 0) = 1 then 'Yes' else 'No' end as Prev_SeenNonMed,
-
-      /* Check for Pregnancy */
-      case when coalesce(r.has_Pregnant, 0) = 1 then 'Yes' else 'No' end as Prev_Pregnant
+      case when coalesce(r.has_SeenNonMed, 0) = 1 then 'Yes' else 'No' end as Prev_SeenNonMed
 
    from work.prs_meds_before as f
    left join (
@@ -907,8 +904,8 @@ proc sql;
          max(case when r.PSE_SPE_COD not in (0,1,22,23,17,33,75) then 1 else 0 end) as has_OtherMed,
          max(case when r.PSE_SPE_COD = 0 then 1 else 0 end) as has_SeenNonMed,
          max(case when r.RGO_ASU_NAT in (40, 80) then 1 else 0 end) as has_ATMPInv,
-         max(case when (r.RGM_COD in (180, 181, 188, 189) and r.RGM_GRG_COD = 1) then 1 else 0 end) as has_AAH,
-         max(case when r.PRS_GRS_DTD is not null then 1 else 0 end) as has_Pregnant
+         max(case when (r.RGM_COD in (180, 181, 188, 189) and r.RGM_GRG_COD = 1) then 1 else 0 end) as has_AAH
+		 
       from (select distinct BEN_IDT_ANO, DT_FIRST_AD from work.prs_meds_before) as p
       inner join sasdata1.prs_au as r
          on p.BEN_IDT_ANO = r.BEN_IDT_ANO
@@ -1557,6 +1554,102 @@ quit;
 proc sort data=work.merged_ out=work.merged_;
    by BEN_IDT_ANO EXE_SOI_DTD;
 run;
-proc copy in=work out=sasdata1;
-   select merged_;
+
+
+/* Previous pregnancy step */
+/* Step 1: Prepare sasdata1.mat — convert BEN_GRS_DTE and parse BEN_DRA_AME */
+data work.mat_clean;
+    set sasdata1.mat;
+
+    /* Transform datetime BEN_GRS_DTE to SAS date */
+    BEN_GRS_DTE_dt = datepart(BEN_GRS_DTE);
+    format BEN_GRS_DTE_dt date9.;
+
+    /* Parse BEN_DRA_AME (YYYYMM) into a SAS date */
+    length _ym_num 8.;
+    if vtype(BEN_DRA_AME) = 'C' then _ym_num = input(strip(BEN_DRA_AME), ?? best12.);
+    else _ym_num = BEN_DRA_AME;
+
+    if not missing(_ym_num) and _ym_num > 160001 then do;
+        _deliv_yr = int(_ym_num / 100);
+        _deliv_mo = mod(_ym_num, 100);
+        /* Conservative: last day of the delivery month */
+        deliv_date = intnx('month', mdy(_deliv_mo, 1, _deliv_yr), 0, 'end');
+    end;
+    else do;
+        /* Case 160001 or missing: upper-bound end date (280 days = 40 weeks from conception) */
+        if not missing(BEN_GRS_DTE_dt) then deliv_date = BEN_GRS_DTE_dt + 280;
+        else deliv_date = .;
+    end;
+
+    format deliv_date date9.;
+    drop _ym_num _deliv_yr _deliv_mo;
 run;
+
+/* Step 2: Classify Prev_Pregnant at the unique BEN_IDT_ANO level first */
+/* This avoids row multiplication when joining multi-row work.merged_ with multi-row sasdata1.mat */
+proc sql;
+    create table work.patient_preg_eval as
+    select 
+        a.BEN_IDT_ANO,
+        a.DT_FIRST_AD,
+        intnx('year', a.DT_FIRST_AD, -1, 'same') as one_yr_before format=date9.,
+        b.BEN_GRS_DTE_dt,
+        b.deliv_date
+    from (
+        select distinct BEN_IDT_ANO, DT_FIRST_AD 
+        from work.merged_
+    ) as a
+    left join work.mat_clean as b
+        on a.BEN_IDT_ANO = b.BEN_IDT_ANO;
+quit;
+
+data work.patient_preg_ranked;
+    set work.patient_preg_eval;
+    length preg_status $16;
+
+    if missing(BEN_GRS_DTE_dt) or missing(DT_FIRST_AD) then preg_status = 'No';
+    /* 1. Started > 1 year before DT_FIRST_AD AND finished > 1 year before DT_FIRST_AD */
+    else if BEN_GRS_DTE_dt < one_yr_before and not missing(deliv_date) and deliv_date < one_yr_before then
+        preg_status = 'Sup1yr_be4';
+    /* 2. Started > 1 year before DT_FIRST_AD AND finished before DT_FIRST_AD (within 1 year) */
+    else if BEN_GRS_DTE_dt < one_yr_before and not missing(deliv_date) and deliv_date < DT_FIRST_AD then
+        preg_status = 'Btw_1yr_FirstATD';
+    /* 3. Started before DT_FIRST_AD AND finished on/after DT_FIRST_AD */
+    else if BEN_GRS_DTE_dt < DT_FIRST_AD and (missing(deliv_date) or deliv_date >= DT_FIRST_AD) then
+        preg_status = 'Be4_FirstATD';
+    /* 4. Otherwise */
+    else 
+        preg_status = 'No';
+
+    /* Priority ranking so each BEN_IDT_ANO gets a single deterministic status */
+    select (preg_status);
+        when ('Be4_FirstATD')     _prio = 1;
+        when ('Btw_1yr_FirstATD') _prio = 2;
+        when ('Sup1yr_be4')       _prio = 3;
+        otherwise                 _prio = 4;
+    end;
+run;
+
+/* Collapse to strictly 1 row per BEN_IDT_ANO */
+proc sort data=work.patient_preg_ranked;
+    by BEN_IDT_ANO _prio;
+run;
+
+data work.patient_preg_unique (keep=BEN_IDT_ANO Prev_Pregnant);
+    set work.patient_preg_ranked;
+    by BEN_IDT_ANO _prio;
+    if first.BEN_IDT_ANO;
+    Prev_Pregnant = preg_status;
+run;
+
+/* Step 3: Merge the single patient-level Prev_Pregnant value back onto all rows of work.merged_ */
+proc sql;
+    create table sasdata1.merged_ as
+    select 
+        m.*,
+        p.Prev_Pregnant
+    from work.merged_ as m
+    left join work.patient_preg_unique as p
+        on m.BEN_IDT_ANO = p.BEN_IDT_ANO;
+quit;
