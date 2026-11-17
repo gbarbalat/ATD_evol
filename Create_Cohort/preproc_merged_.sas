@@ -1556,7 +1556,11 @@ proc sort data=work.merged_ out=work.merged_;
 run;
 
 
-/* Previous pregnancy step */
+/* ========== 
+=== CHUNK 5 ===
+=== Prev_Pregnant ====
+============= */
+
 /* Step 1: Prepare sasdata1.mat — convert BEN_GRS_DTE and parse BEN_DRA_AME */
 data work.mat_clean;
     set sasdata1.mat;
@@ -1608,25 +1612,36 @@ data work.patient_preg_ranked;
     set work.patient_preg_eval;
     length preg_status $16;
 
-    if missing(BEN_GRS_DTE_dt) or missing(DT_FIRST_AD) then preg_status = 'No';
-    /* 1. Started > 1 year before DT_FIRST_AD AND finished > 1 year before DT_FIRST_AD */
-    else if BEN_GRS_DTE_dt < one_yr_before and not missing(deliv_date) and deliv_date < one_yr_before then
-        preg_status = 'Sup1yr_be4';
-    /* 2. Started > 1 year before DT_FIRST_AD AND finished before DT_FIRST_AD (within 1 year) */
-    else if BEN_GRS_DTE_dt < one_yr_before and not missing(deliv_date) and deliv_date < DT_FIRST_AD then
-        preg_status = 'Btw_1yr_FirstATD';
-    /* 3. Started before DT_FIRST_AD AND finished on/after DT_FIRST_AD */
-    else if BEN_GRS_DTE_dt < DT_FIRST_AD and (missing(deliv_date) or deliv_date >= DT_FIRST_AD) then
-        preg_status = 'Be4_FirstATD';
-    /* 4. Otherwise */
+    if missing(BEN_GRS_DTE_dt) or missing(DT_FIRST_AD) then 
+        preg_status = 'No';
+
+    /* 1. Start before DT_FIRST_AD AND end on/after DT_FIRST_AD */
+    else if BEN_GRS_DTE_dt < DT_FIRST_AD 
+            and (missing(deliv_date) or deliv_date >= DT_FIRST_AD) then
+        preg_status = 'Ongoing_at_ATD';
+
+    /* 3. Start AND end strictly before (DT_FIRST_AD - 1 year) */
+    else if BEN_GRS_DTE_dt < one_yr_before 
+            and not missing(deliv_date) 
+            and deliv_date < one_yr_before then
+        preg_status = 'Ended_gt1yr_be4';
+
+    /* 2. Start before DT_FIRST_AD AND end before DT_FIRST_AD, but on/after (DT_FIRST_AD - 1 year) */
+    else if BEN_GRS_DTE_dt < DT_FIRST_AD 
+            and not missing(deliv_date) 
+            and deliv_date >= one_yr_before 
+            and deliv_date < DT_FIRST_AD then
+        preg_status = 'Ended_within_1yr';
+
+    /* 4. None of these conditions (e.g., started on/after DT_FIRST_AD, or no pregnancy) */
     else 
         preg_status = 'No';
 
-    /* Priority ranking so each BEN_IDT_ANO gets a single deterministic status */
+    /* Priority ranking if a woman has multiple pregnancies in sasdata1.mat */
     select (preg_status);
-        when ('Be4_FirstATD')     _prio = 1;
-        when ('Btw_1yr_FirstATD') _prio = 2;
-        when ('Sup1yr_be4')       _prio = 3;
+        when ('Ongoing_at_ATD')     _prio = 1;
+        when ('Ended_within_1yr') _prio = 2;
+        when ('Ended_gt1yr_be4')       _prio = 3;
         otherwise                 _prio = 4;
     end;
 run;
