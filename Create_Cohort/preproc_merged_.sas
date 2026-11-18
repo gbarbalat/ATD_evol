@@ -1660,7 +1660,7 @@ run;
 
 /* Step 3: Merge the single patient-level Prev_Pregnant value back onto all rows of work.merged_ */
 proc sql;
-    create table sasdata1.merged_ as
+    create table sasdata1.merged_&grace. as
     select 
         m.*,
         p.Prev_Pregnant
