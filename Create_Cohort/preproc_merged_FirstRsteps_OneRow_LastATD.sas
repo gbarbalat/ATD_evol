@@ -8,7 +8,7 @@
    Step 1: Clean dates where MAX_TRT_DTD or BEN_DCD_DTE precede DT_FIRST_AD
    ========================================================================= */
 data work.merged_checks_recode;
-    set sasdata1.merged_;
+    set sasdata1.merged_&grace.;
     format MAX_TRT_DTD BEN_DCD_DTE DT_FIRST_AD yymmdd10.;
     
     if MAX_TRT_DTD < DT_FIRST_AD then MAX_TRT_DTD = today();
