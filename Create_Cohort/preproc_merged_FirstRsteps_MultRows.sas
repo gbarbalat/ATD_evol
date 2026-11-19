@@ -3,33 +3,59 @@ proc sort data=sasdata1.merged_45 out=work._m45_sorted;
     by BEN_IDT_ANO start;
 run;
 
-/* Step 2: Build lead(event) = value of event on row i+1 within each BEN_IDT_ANO */
+/* Step 2: Build lead(event) and lead(psy_meds) = values on row i+1 within each BEN_IDT_ANO */
 data work._m45_lead;
     merge work._m45_sorted
-          work._m45_sorted (firstobs=2 keep=BEN_IDT_ANO event 
-                            rename=(BEN_IDT_ANO=_next_id event=_next_event));
+          work._m45_sorted (firstobs=2 
+                            keep=BEN_IDT_ANO event psy_meds 
+                            rename=(BEN_IDT_ANO=_next_id 
+                                    event=_next_event 
+                                    psy_meds=_next_psy_meds));
     
-    /* If the next row belongs to the same BEN_IDT_ANO, take its event; otherwise missing */
-    if BEN_IDT_ANO = _next_id then _lead_event = _next_event;
-    else _lead_event = .;
+    /* If the next row belongs to the same BEN_IDT_ANO, take row i+1's values; otherwise missing */
+    if BEN_IDT_ANO = _next_id then do;
+        _lead_event    = _next_event;
+        _lead_psy_meds = _next_psy_meds;
+    end;
+    else do;
+        _lead_event    = .;
+        _lead_psy_meds = ''; /* Use . if psy_meds is numeric */
+    end;
 
-    drop _next_id _next_event;
+    drop _next_id _next_event _next_psy_meds;
 run;
 
-/* Step 3: Apply all first.BEN_IDT_ANO and i-1 lag rules */
+/* Step 3: Apply all first.BEN_IDT_ANO, i-1 lag, and i+1 lead rules in exact column order */
 data sasdata1.merged_45_anal;
+    /* Declare wider length for Pregnant & _lag_Pregnant BEFORE SET to avoid truncating Prev_Pregnant */
+    length Pregnant _lag_Pregnant $20;
+
+    /* RETAIN before SET locks the exact output column order in the PDV */
+    retain
+        BEN_IDT_ANO
+        /* 1 */     refill_nb
+        /* 1 bis */ season_year region BEN_RES_DPT FDEP20_quint P20_POP Nb_GP Nb_Psych
+        /* 2 */     PSY_: TPS_: MAX_TRT_DTD BEN_DCD_DTE BEN_AMA_COD DT_FIRST_AD
+        /* 3 & 4 */ RIP_0_Length RIP_2_Length MCO_Length HAD_Length SSR_Length
+        /* 5 */     Pregnant
+        /* 6 */     HasATMPInv HasAAH HasC2S HasALDPsy HasALDNonPsy
+        /* 7 */     CumulAnx CumulGP CumulOtherMed CumulNonMed CumulPsych CumulOtherMeds
+        /* 8 */     start PSP_SPE_COD stop
+        /* 9 */     event psy_meds
+    ;
+
     set work._m45_lead;
     by BEN_IDT_ANO;
 
     /* Compute i-1 values from the original merged_45 columns BEFORE overwriting */
     /* Rule 1 bis */
-    _lag_season_year = lag(season_year);
-    _lag_region      = lag(region);
-    _lag_BEN_RES_DPT = lag(BEN_RES_DPT);
-    _lag_FDEP_quint  = lag(FDEP_quint);
-    _lag_P20_POP     = lag(P20_POP);
-    _lag_Nb_GP       = lag(Nb_GP);
-    _lag_Nb_Psych    = lag(Nb_Psych);
+    _lag_season_year  = lag(season_year);
+    _lag_region       = lag(region);
+    _lag_BEN_RES_DPT  = lag(BEN_RES_DPT);
+    _lag_FDEP20_quint = lag(FDEP20_quint);
+    _lag_P20_POP      = lag(P20_POP);
+    _lag_Nb_GP        = lag(Nb_GP);
+    _lag_Nb_Psych     = lag(Nb_Psych);
 
     /* Rules 3 & 4 */
     _lag_RIP_0_Length = lag(RIP_0_Length);
@@ -58,14 +84,12 @@ data sasdata1.merged_45_anal;
 
     /* Assign row-specific values within each BEN_IDT_ANO */
     if first.BEN_IDT_ANO then do;
-        /* Rule 1 bis: keep row 1's own value in merged_45 (no change needed) */
-
-        /* Rules 3 & 4 */
-        RIP_0_Length = Prev_RIP_0;
-        RIP_2_Length = Prev_RIP_2;
-        MCO_Length   = Prev_MCO;
-        HAD_Length   = Prev_HAD;
-        SSR_Length   = Prev_SSR;
+        /* Rules 3 & 4: Convert 'Yes'/'No' character indicators to numeric (1/0) */
+        RIP_0_Length = (Prev_RIP_0 = 'Yes');
+        RIP_2_Length = (Prev_RIP_2 = 'Yes');
+        MCO_Length   = (Prev_MCO   = 'Yes');
+        HAD_Length   = (Prev_HAD   = 'Yes');
+        SSR_Length   = (Prev_SSR   = 'Yes');
 
         /* Rule 5 */
         Pregnant = Prev_Pregnant;
@@ -79,21 +103,21 @@ data sasdata1.merged_45_anal;
 
         /* Rule 7 */
         CumulAnx       = CumulPrev_Anx;
-        CumulGP        = CumulPrev_GP;
-        CumulOtherMed  = CumulPrev_OtherMed;
-        CumulNonMed    = CumulPrev_NonMed;
-        CumulPsych     = CumulPrev_Psych;
+        CumulGP        = CumulPrev_SeenGP;
+        CumulOtherMed  = CumulPrev_SeenOtherMed;
+        CumulNonMed    = CumulPrev_SeenNonMed;
+        CumulPsych     = CumulPrev_SeenPsych;
         CumulOtherMeds = CumulPrev_Meds;
     end;
     else do;
         /* Rule 1 bis */
-        season_year = _lag_season_year;
-        region      = _lag_region;
-        BEN_RES_DPT = _lag_BEN_RES_DPT;
-        FDEP_quint  = _lag_FDEP_quint;
-        P20_POP     = _lag_P20_POP;
-        Nb_GP       = _lag_Nb_GP;
-        Nb_Psych    = _lag_Nb_Psych;
+        season_year  = _lag_season_year;
+        region       = _lag_region;
+        BEN_RES_DPT  = _lag_BEN_RES_DPT;
+        FDEP20_quint = _lag_FDEP20_quint;
+        P20_POP      = _lag_P20_POP;
+        Nb_GP        = _lag_Nb_GP;
+        Nb_Psych     = _lag_Nb_Psych;
 
         /* Rules 3 & 4 */
         RIP_0_Length = _lag_RIP_0_Length;
@@ -121,20 +145,21 @@ data sasdata1.merged_45_anal;
         CumulOtherMeds = _lag_CumulOtherMeds;
     end;
 
-    /* Rule 9: event in cell i = event in cell i+1 */
-    event = _lead_event;
+    /* Rule 9: event and psy_meds in cell i = values from cell i+1 */
+    event    = _lead_event;
+    psy_meds = _lead_psy_meds;
 
-    /* Keep only the requested columns (Rules 1 through 9) */
+    /* Keep only the requested columns */
     keep 
         BEN_IDT_ANO
-        /* 1 */     refill_nb
-        /* 1 bis */ season_year region BEN_RES_DPT FDEP_quint P20_POP Nb_GP Nb_Psych
-        /* 2 */     PSY_: TPS_: MAX_TRT_DTD BEN_DCD_DTE BEN_AMA_COD DT_FIRST_AD
-        /* 3 & 4 */ RIP_0_Length RIP_2_Length MCO_Length HAD_Length SSR_Length
-        /* 5 */     Pregnant
-        /* 6 */     HasATMPInv HasAAH HasC2S HasALDPsy HasALDNonPsy
-        /* 7 */     CumulAnx CumulGP CumulOtherMed CumulNonMed CumulPsych CumulOtherMeds
-        /* 8 */     start PSP_SPE_COD stop
-        /* 9 */     event
+        refill_nb
+        season_year region BEN_RES_DPT FDEP20_quint P20_POP Nb_GP Nb_Psych
+        PSY_: TPS_: MAX_TRT_DTD BEN_DCD_DTE BEN_AMA_COD DT_FIRST_AD
+        RIP_0_Length RIP_2_Length MCO_Length HAD_Length SSR_Length
+        Pregnant
+        HasATMPInv HasAAH HasC2S HasALDPsy HasALDNonPsy
+        CumulAnx CumulGP CumulOtherMed CumulNonMed CumulPsych CumulOtherMeds
+        start PSP_SPE_COD stop
+        event psy_meds
     ;
 run;
