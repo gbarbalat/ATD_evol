@@ -92,10 +92,9 @@ data work.merged_checks_recode4;
 	season_year region BEN_RES_DPT FDEP20_quint P20_POP Nb_GP Nb_Psych 
 	DT_FIRST_AD PSP_SPE_COD /* First_Prescriber */
 	BEN_AMA_COD Pregnant BEN_DCD_DTE MAX_TRT_DTD
-	Has_C2S Has_ATMPInv Has_AAH Has_ALDPsy Has_ALDNonPsy
 	RIP_0_Length RIP_2_Length MCO_Length SSR_Length HAD_Length
-	CumulPrev_SeenNonMed CumulPrev_SeenOtherMed CumulPrev_SeenGP CumulPrev_SeenPsych CumulPrev_Meds CumulPrev_Anx
-	event
+	HasATMPInv HasAAH HasC2S HasALDPsy HasALDNonPsy
+    CumulAnx CumulGP CumulOtherMed CumulNonMed CumulPsych CumulOtherMeds	event
 	;
     /* drop psy_meds calc_stop start stop stop_found keep_row; */
 run;
