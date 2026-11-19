@@ -35,7 +35,7 @@ data sasdata1.merged_45_anal;
         BEN_IDT_ANO
         /* 1 */     refill_nb
         /* 1 bis */ season_year region BEN_RES_DPT FDEP20_quint P20_POP Nb_GP Nb_Psych
-        /* 2 */     PSY_: TPS_: MAX_TRT_DTD BEN_DCD_DTE BEN_AMA_COD DT_FIRST_AD
+        /* 2 */     PSY_: TPS_: MAX_TRT_DTD BEN_DCD_DTE BEN_AMA_COD DT_FIRST_AD PHA_ATC_LIB
         /* 3 & 4 */ RIP_0_Length RIP_2_Length MCO_Length HAD_Length SSR_Length
         /* 5 */     Pregnant
         /* 6 */     HasATMPInv HasAAH HasC2S HasALDPsy HasALDNonPsy
@@ -46,6 +46,9 @@ data sasdata1.merged_45_anal;
 
     set work._m45_lead;
     by BEN_IDT_ANO;
+
+    /* Retain helper variable to hold the patient's first PHA_ATC_LIB across all rows */
+    retain _first_PHA_ATC_LIB;
 
     /* Compute i-1 values from the original merged_45 columns BEFORE overwriting */
     /* Rule 1 bis */
@@ -84,6 +87,9 @@ data sasdata1.merged_45_anal;
 
     /* Assign row-specific values within each BEN_IDT_ANO */
     if first.BEN_IDT_ANO then do;
+        /* Capture first PHA_ATC_LIB for this BEN_IDT_ANO */
+        _first_PHA_ATC_LIB = PHA_ATC_LIB;
+
         /* Rules 3 & 4: Convert 'Yes'/'No' character indicators to numeric (1/0) */
         RIP_0_Length = (Prev_RIP_0 = 'Yes');
         RIP_2_Length = (Prev_RIP_2 = 'Yes');
@@ -145,6 +151,9 @@ data sasdata1.merged_45_anal;
         CumulOtherMeds = _lag_CumulOtherMeds;
     end;
 
+    /* Carry the first PHA_ATC_LIB onto every row of BEN_IDT_ANO */
+    PHA_ATC_LIB = _first_PHA_ATC_LIB;
+
     /* Rule 9: event and psy_meds in cell i = values from cell i+1 */
     event    = _lead_event;
     psy_meds = _lead_psy_meds;
@@ -154,7 +163,7 @@ data sasdata1.merged_45_anal;
         BEN_IDT_ANO
         refill_nb
         season_year region BEN_RES_DPT FDEP20_quint P20_POP Nb_GP Nb_Psych
-        PSY_: TPS_: MAX_TRT_DTD BEN_DCD_DTE BEN_AMA_COD DT_FIRST_AD
+        PSY_: TPS_: MAX_TRT_DTD BEN_DCD_DTE BEN_AMA_COD DT_FIRST_AD PHA_ATC_LIB
         RIP_0_Length RIP_2_Length MCO_Length HAD_Length SSR_Length
         Pregnant
         HasATMPInv HasAAH HasC2S HasALDPsy HasALDNonPsy
