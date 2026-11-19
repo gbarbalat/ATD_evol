@@ -1,0 +1,140 @@
+/* Step 1: Ensure sasdata1.merged_45 is sorted by BEN_IDT_ANO and start */
+proc sort data=sasdata1.merged_45 out=work._m45_sorted;
+    by BEN_IDT_ANO start;
+run;
+
+/* Step 2: Build lead(event) = value of event on row i+1 within each BEN_IDT_ANO */
+data work._m45_lead;
+    merge work._m45_sorted
+          work._m45_sorted (firstobs=2 keep=BEN_IDT_ANO event 
+                            rename=(BEN_IDT_ANO=_next_id event=_next_event));
+    
+    /* If the next row belongs to the same BEN_IDT_ANO, take its event; otherwise missing */
+    if BEN_IDT_ANO = _next_id then _lead_event = _next_event;
+    else _lead_event = .;
+
+    drop _next_id _next_event;
+run;
+
+/* Step 3: Apply all first.BEN_IDT_ANO and i-1 lag rules */
+data sasdata1.merged_45_anal;
+    set work._m45_lead;
+    by BEN_IDT_ANO;
+
+    /* Compute i-1 values from the original merged_45 columns BEFORE overwriting */
+    /* Rule 1 bis */
+    _lag_season_year = lag(season_year);
+    _lag_region      = lag(region);
+    _lag_BEN_RES_DPT = lag(BEN_RES_DPT);
+    _lag_FDEP_quint  = lag(FDEP_quint);
+    _lag_P20_POP     = lag(P20_POP);
+    _lag_Nb_GP       = lag(Nb_GP);
+    _lag_Nb_Psych    = lag(Nb_Psych);
+
+    /* Rules 3 & 4 */
+    _lag_RIP_0_Length = lag(RIP_0_Length);
+    _lag_RIP_2_Length = lag(RIP_2_Length);
+    _lag_MCO_Length   = lag(MCO_Length);
+    _lag_HAD_Length   = lag(HAD_Length);
+    _lag_SSR_Length   = lag(SSR_Length);
+
+    /* Rule 5 */
+    _lag_Pregnant = lag(Pregnant);
+
+    /* Rule 6 */
+    _lag_HasATMPInv   = lag(HasATMPInv);
+    _lag_HasAAH       = lag(HasAAH);
+    _lag_HasC2S       = lag(HasC2S);
+    _lag_HasALDPsy    = lag(HasALDPsy);
+    _lag_HasALDNonPsy = lag(HasALDNonPsy);
+
+    /* Rule 7 */
+    _lag_CumulAnx       = lag(CumulAnx);
+    _lag_CumulGP        = lag(CumulGP);
+    _lag_CumulOtherMed  = lag(CumulOtherMed);
+    _lag_CumulNonMed    = lag(CumulNonMed);
+    _lag_CumulPsych     = lag(CumulPsych);
+    _lag_CumulOtherMeds = lag(CumulOtherMeds);
+
+    /* Assign row-specific values within each BEN_IDT_ANO */
+    if first.BEN_IDT_ANO then do;
+        /* Rule 1 bis: keep row 1's own value in merged_45 (no change needed) */
+
+        /* Rules 3 & 4 */
+        RIP_0_Length = Prev_RIP_0;
+        RIP_2_Length = Prev_RIP_2;
+        MCO_Length   = Prev_MCO;
+        HAD_Length   = Prev_HAD;
+        SSR_Length   = Prev_SSR;
+
+        /* Rule 5 */
+        Pregnant = Prev_Pregnant;
+
+        /* Rule 6 */
+        HasATMPInv   = Prev_ATMPInv;
+        HasAAH       = Prev_AAH;
+        HasC2S       = Prev_C2S;
+        HasALDPsy    = Prev_ALDPsy;
+        HasALDNonPsy = Prev_ALDNonPsy;
+
+        /* Rule 7 */
+        CumulAnx       = CumulPrev_Anx;
+        CumulGP        = CumulPrev_GP;
+        CumulOtherMed  = CumulPrev_OtherMed;
+        CumulNonMed    = CumulPrev_NonMed;
+        CumulPsych     = CumulPrev_Psych;
+        CumulOtherMeds = CumulPrev_Meds;
+    end;
+    else do;
+        /* Rule 1 bis */
+        season_year = _lag_season_year;
+        region      = _lag_region;
+        BEN_RES_DPT = _lag_BEN_RES_DPT;
+        FDEP_quint  = _lag_FDEP_quint;
+        P20_POP     = _lag_P20_POP;
+        Nb_GP       = _lag_Nb_GP;
+        Nb_Psych    = _lag_Nb_Psych;
+
+        /* Rules 3 & 4 */
+        RIP_0_Length = _lag_RIP_0_Length;
+        RIP_2_Length = _lag_RIP_2_Length;
+        MCO_Length   = _lag_MCO_Length;
+        HAD_Length   = _lag_HAD_Length;
+        SSR_Length   = _lag_SSR_Length;
+
+        /* Rule 5 */
+        Pregnant = _lag_Pregnant;
+
+        /* Rule 6 */
+        HasATMPInv   = _lag_HasATMPInv;
+        HasAAH       = _lag_HasAAH;
+        HasC2S       = _lag_HasC2S;
+        HasALDPsy    = _lag_HasALDPsy;
+        HasALDNonPsy = _lag_HasALDNonPsy;
+
+        /* Rule 7 */
+        CumulAnx       = _lag_CumulAnx;
+        CumulGP        = _lag_CumulGP;
+        CumulOtherMed  = _lag_CumulOtherMed;
+        CumulNonMed    = _lag_CumulNonMed;
+        CumulPsych     = _lag_CumulPsych;
+        CumulOtherMeds = _lag_CumulOtherMeds;
+    end;
+
+    /* Rule 9: event in cell i = event in cell i+1 */
+    event = _lead_event;
+
+    /* Keep only the requested columns (Rules 1 through 9) */
+    keep 
+        BEN_IDT_ANO
+        /* 1 */     refill_nb
+        /* 1 bis */ season_year region BEN_RES_DPT FDEP_quint P20_POP Nb_GP Nb_Psych
+        /* 2 */     PSY_: TPS_: MAX_TRT_DTD BEN_DCD_DTE BEN_AMA_COD DT_FIRST_AD
+        /* 3 & 4 */ RIP_0_Length RIP_2_Length MCO_Length HAD_Length SSR_Length
+        /* 5 */     Pregnant
+        /* 6 */     HasATMPInv HasAAH HasC2S HasALDPsy HasALDNonPsy
+        /* 7 */     CumulAnx CumulGP CumulOtherMed CumulNonMed CumulPsych CumulOtherMeds
+        /* 8 */     start PSP_SPE_COD stop
+        /* 9 */     event
+    ;
+run;
