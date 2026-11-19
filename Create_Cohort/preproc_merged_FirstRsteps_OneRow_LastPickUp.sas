@@ -8,7 +8,7 @@
    Step 1: Clean dates where MAX_TRT_DTD or BEN_DCD_DTE precede DT_FIRST_AD
    ========================================================================= */
 data work.merged_checks_recode;
-    set sasdata1.merged_&grace.;
+    set sasdata1.merged_&grace._anal;
     format MAX_TRT_DTD BEN_DCD_DTE DT_FIRST_AD yymmdd10.;
     
     if MAX_TRT_DTD < DT_FIRST_AD then MAX_TRT_DTD = today();
@@ -32,7 +32,7 @@ data work.merged_checks_recode2;
     length_hosp = max(
         coalesce(MCO_Length, 0), 
         coalesce(SSR_Length, 0), 
-        coalesce(HAD_Length, 0), 
+       /* coalesce(HAD_Length, 0), */
         coalesce(RIP_0_Length, 0)
     );
     
@@ -44,7 +44,7 @@ data work.merged_checks_recode2;
     /* Existing logic for the last row per patient */
     if last.BEN_IDT_ANO then do;
         /* Correct SAS syntax for finding the minimum across columns */
-        next_exe_date = min(BEN_DCD_DTE, DT_FIRST_AD + 365);
+        next_exe_date = min(BEN_DCD_DTE, MAX_TRT_DTE, DT_FIRST_AD + 365);
         stop = next_exe_date - DT_FIRST_AD;
     end;
 run;
@@ -88,14 +88,12 @@ data work.merged_checks_recode4;
     if first.ben_idt_ano;
 
 	/* keep prev variables */ 
-	keep ben_idt_ano season_year region BEN_RES_DPT FDEP20_quint P20_POP Nb_GP Nb_Psych 
-	DT_FIRST_AD First_Prescriber
-	BEN_AMA_COD Prev_Pregnant BEN_DCD_DTE MAX_TRT_DTD
-	Prev_C2S Prev_ATMPInv Prev_AAH Prev_Anx Prev_ALDPsy Prev_ALDNonPsy
-	AGE_HAD_before AGE_MCO_before AGE_RIP_before AGE_SSR_before Prev_HAD Prev_MCO Prev_RIP_0 Prev_RIP_2 Prev_SSR
-	tps_: psy_:	Prev_Psy_Adm
-	Prev_SeenPsych Prev_SeenOtherMed Prev_SeenGP Prev_SeenNonMed 
-	Prev_Meds Prev_Anx
+	keep ben_idt_ano PHA_ATC_LIB tps_: psy_: Prev_Psy_Adm
+	season_year region BEN_RES_DPT FDEP20_quint P20_POP Nb_GP Nb_Psych 
+	DT_FIRST_AD PSP_SPE_COD /* First_Prescriber */
+	BEN_AMA_COD Pregnant BEN_DCD_DTE MAX_TRT_DTD
+	Has_C2S Has_ATMPInv Has_AAH Has_ALDPsy Has_ALDNonPsy
+	RIP_0_Length RIP_2_Length MCO_Length SSR_Length HAD_Length
 	CumulPrev_SeenNonMed CumulPrev_SeenOtherMed CumulPrev_SeenGP CumulPrev_SeenPsych CumulPrev_Meds CumulPrev_Anx
 	event
 	;
@@ -144,7 +142,7 @@ proc sort data=work.merged_checks_recode4; by ben_idt_ano; run;
 proc sort data=work.merged_checks_recode5; by ben_idt_ano; run;
 proc sort data=work.psy_concat; by ben_idt_ano; run;
 
-data sasdata1.merged_checks_recode6_LastPU_&grace.;
+data work.merged_checks_recode6_LastPU_&grace.;
     merge work.merged_checks_recode4 work.merged_checks_recode5 work.psy_concat;
     by ben_idt_ano;
 run;
