@@ -77,6 +77,7 @@ data work.merged_checks_recode3;
 		else if event = 'ATD_' or event = 'SWI_' then do;
 			calc_stop = stop;
 			stop_found = 1;
+		end; 
         else if last.ben_idt_ano then do;
             calc_stop = start;
             stop_found = 1;
