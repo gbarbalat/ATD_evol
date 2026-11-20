@@ -81,7 +81,7 @@ data work.merged_checks_recode3;
     else keep_row = 0;
 run;
 
-data WORK.merged_Mult_LastPU_&grace.;
+data sasdata1.merged_Mult_LastPU_&grace.;
     
     set work.merged_checks_recode3 (where=(keep_row=1));
 
@@ -99,115 +99,4 @@ data WORK.merged_Mult_LastPU_&grace.;
         HasATMPInv HasAAH HasC2S HasALDPsy HasALDNonPsy
         CumulAnx CumulGP CumulOtherMed CumulNonMed CumulPsych CumulOtherMeds
         start PSP_SPE_COD stop calc_stop event psy_meds;
-run;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/* Extract patient-level summary (first values for covar, plus calculated stop) */
-data work.merged_checks_recode4;
-    set work.merged_checks_recode3 (where=(start=&LM_start));
-    by ben_idt_ano start;
-    
-    /* Automatically takes the first. value for all columns due to data step behavior */
-    if first.ben_idt_ano;
-
-	/* keep prev variables */ 
-	keep ben_idt_ano PHA_ATC_LIB 
-	PSY_ADD_ALC PSY_ADD_AUT PSY_ADD_CAT PSY_ADD_CNB PSY_ADD_TAB PSY_AUT_IND PSY_CAT_CAT PSY_DME_IND PSY_ENF_IND PSY_PSC_IND PSY_TNH_BIP PSY_TNH_CAT PSY_TNH_DEP PSY_TNH_NEV
-	TPS_ADR_EXC TPS_ADR_INC TPS_ANX_EXC TPS_ANX_INC TPS_CAT_EXC TPS_CAT_INC TPS_HYP_EXC TPS_HYP_INC TPS_NLE_EXC TPS_NLE_INC
-	Prev_Psy_Adm
-	season_year region BEN_RES_DPT FDEP20_quint P20_POP Nb_GP Nb_Psych 
-	DT_FIRST_AD PSP_SPE_COD /* First_Prescriber */
-	BEN_AMA_COD Pregnant BEN_DCD_DTE MAX_TRT_DTD
-	RIP_0_Length RIP_2_Length MCO_Length SSR_Length HAD_Length
-	HasATMPInv HasAAH HasC2S HasALDPsy HasALDNonPsy
-    CumulAnx CumulGP CumulOtherMed CumulNonMed CumulPsych CumulOtherMeds	event
-	;
-    /* drop psy_meds calc_stop start stop stop_found keep_row; */
-run;
-
-/* Extract calculated stop */
-data work.merged_checks_recode5;
-    set work.merged_checks_recode3 (where=(stop_found=1) keep=ben_idt_ano start stop_found calc_stop);
-    by ben_idt_ano start;
-    
-    if first.ben_idt_ano;
-    
-    keep ben_idt_ano start calc_stop;
-run;
-
-
-/* concatenate meds*/
-proc sort data=work.merged_checks_recode3 
-          out=work.filtered_unique;
-    where keep_row = 1 and not missing(psy_meds);
-    by ben_idt_ano start;
-run;
-
-data work.psy_concat;
-    set work.filtered_unique;
-    by ben_idt_ano start;
-    
-    length unique_psy_meds $32767;
-    retain unique_psy_meds;
-    
-    if first.ben_idt_ano then unique_psy_meds = "";
-    
-    /* Build the comma-separated list */
-    if unique_psy_meds = "" then unique_psy_meds = strip(psy_meds);
-    else unique_psy_meds = catx(", ", unique_psy_meds, strip(psy_meds));
-    
-    /* Keep only the final row for each patient */
-    if last.ben_idt_ano;
-    keep ben_idt_ano unique_psy_meds;
-run;
-
-
-/* Merge all three dbs */
-proc sort data=work.merged_checks_recode4; by ben_idt_ano; run;
-proc sort data=work.merged_checks_recode5; by ben_idt_ano; run;
-proc sort data=work.psy_concat; by ben_idt_ano; run;
-
-data sasdata1.merged_checks_recode6_LastPU_&grace.;
-    merge work.merged_checks_recode4 work.merged_checks_recode5 work.psy_concat;
-    by ben_idt_ano;
-run;
-
-data sasdata1.merged_checks_recode6_LastPU_&grace.;
-    retain 
-	ben_idt_ano PHA_ATC_LIB 
-	PSY_ADD_ALC PSY_ADD_AUT PSY_ADD_CAT PSY_ADD_CNB PSY_ADD_TAB PSY_AUT_IND PSY_CAT_CAT PSY_DME_IND PSY_ENF_IND PSY_PSC_IND PSY_TNH_BIP PSY_TNH_CAT PSY_TNH_DEP PSY_TNH_NEV
-	TPS_ADR_EXC TPS_ADR_INC TPS_ANX_EXC TPS_ANX_INC TPS_CAT_EXC TPS_CAT_INC TPS_HYP_EXC TPS_HYP_INC TPS_NLE_EXC TPS_NLE_INC
-	Prev_Psy_Adm
-	season_year region BEN_RES_DPT FDEP20_quint P20_POP Nb_GP Nb_Psych 
-	DT_FIRST_AD 
-	BEN_AMA_COD Pregnant BEN_DCD_DTE MAX_TRT_DTD
-	RIP_0_Length RIP_2_Length MCO_Length SSR_Length HAD_Length
-	HasATMPInv HasAAH HasC2S HasALDPsy HasALDNonPsy
-    CumulAnx CumulGP CumulOtherMed CumulNonMed CumulPsych CumulOtherMeds
-	start PSP_SPE_COD calc_stop event unique_psy_meds
-    ;
-    set sasdata1.merged_checks_recode6_LastPU_&grace.;
 run;
