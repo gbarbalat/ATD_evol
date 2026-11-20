@@ -8,7 +8,7 @@
    Step 1: Clean dates where MAX_TRT_DTD or BEN_DCD_DTE precede DT_FIRST_AD
    ========================================================================= */
 data work.merged_checks_recode;
-    set sasdata1.merged_&grace._anal;
+    set sasdata1.merged_&grace;
     format MAX_TRT_DTD BEN_DCD_DTE DT_FIRST_AD yymmdd10.;
     
     if MAX_TRT_DTD < DT_FIRST_AD then MAX_TRT_DTD = today();
@@ -88,7 +88,10 @@ data work.merged_checks_recode4;
     if first.ben_idt_ano;
 
 	/* keep prev variables */ 
-	keep ben_idt_ano PHA_ATC_LIB tps_: psy_: Prev_Psy_Adm
+	keep ben_idt_ano PHA_ATC_LIB 
+	PSY_ADD_ALC PSY_ADD_AUT PSY_ADD_CAT PSY_ADD_CNB PSY_ADD_TAB PSY_AUT_IND PSY_CAT_CAT PSY_DME_IND PSY_ENF_IND PSY_PSC_IND PSY_TNH_BIP PSY_TNH_CAT PSY_TNH_DEP PSY_TNH_NEV
+	TPS_ADR_EXC TPS_ADR_INC TPS_ANX_EXC TPS_ANX_INC TPS_CAT_EXC TPS_CAT_INC TPS_HYP_EXC TPS_HYP_INC TPS_NLE_EXC TPS_NLE_INC
+	Prev_Psy_Adm
 	season_year region BEN_RES_DPT FDEP20_quint P20_POP Nb_GP Nb_Psych 
 	DT_FIRST_AD PSP_SPE_COD /* First_Prescriber */
 	BEN_AMA_COD Pregnant BEN_DCD_DTE MAX_TRT_DTD
@@ -106,7 +109,7 @@ data work.merged_checks_recode5;
     
     if first.ben_idt_ano;
     
-    keep ben_idt_ano calc_stop;
+    keep ben_idt_ano start calc_stop;
 run;
 
 
@@ -148,18 +151,17 @@ run;
 
 data sasdata1.merged_checks_recode6_LastPU_&grace.;
     retain 
-        ben_idt_ano 
-        PHA_ATC_LIB 
-        tps_: 
-        psy_: 
-        Prev_Psy_Adm
-        season_year region BEN_RES_DPT FDEP20_quint P20_POP Nb_GP Nb_Psych 
-        DT_FIRST_AD /* First_Prescriber */
-        BEN_AMA_COD Pregnant BEN_DCD_DTE MAX_TRT_DTD
-        RIP_0_Length RIP_2_Length MCO_Length SSR_Length HAD_Length
-        HasATMPInv HasAAH HasC2S HasALDPsy HasALDNonPsy
-        CumulAnx CumulGP CumulOtherMed CumulNonMed CumulPsych CumulOtherMeds 
-        start PSP_SPE_COD calc_stop event psy_meds
+	ben_idt_ano PHA_ATC_LIB 
+	PSY_ADD_ALC PSY_ADD_AUT PSY_ADD_CAT PSY_ADD_CNB PSY_ADD_TAB PSY_AUT_IND PSY_CAT_CAT PSY_DME_IND PSY_ENF_IND PSY_PSC_IND PSY_TNH_BIP PSY_TNH_CAT PSY_TNH_DEP PSY_TNH_NEV
+	TPS_ADR_EXC TPS_ADR_INC TPS_ANX_EXC TPS_ANX_INC TPS_CAT_EXC TPS_CAT_INC TPS_HYP_EXC TPS_HYP_INC TPS_NLE_EXC TPS_NLE_INC
+	Prev_Psy_Adm
+	season_year region BEN_RES_DPT FDEP20_quint P20_POP Nb_GP Nb_Psych 
+	DT_FIRST_AD 
+	BEN_AMA_COD Pregnant BEN_DCD_DTE MAX_TRT_DTD
+	RIP_0_Length RIP_2_Length MCO_Length SSR_Length HAD_Length
+	HasATMPInv HasAAH HasC2S HasALDPsy HasALDNonPsy
+    CumulAnx CumulGP CumulOtherMed CumulNonMed CumulPsych CumulOtherMeds
+	start PSP_SPE_COD calc_stop event unique_psy_meds
     ;
     set sasdata1.merged_checks_recode6_LastPU_&grace.;
 run;
