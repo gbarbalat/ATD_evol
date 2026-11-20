@@ -44,7 +44,7 @@ data work.merged_checks_recode2;
     /* Existing logic for the last row per patient */
     if last.BEN_IDT_ANO then do;
         /* Correct SAS syntax for finding the minimum across columns */
-        next_exe_date = min(BEN_DCD_DTE, MAX_TRT_DTE, DT_FIRST_AD + 365);
+        next_exe_date = min(BEN_DCD_DTE, MAX_TRT_DTD, DT_FIRST_AD + 365);
         stop = next_exe_date - DT_FIRST_AD;
     end;
 run;
