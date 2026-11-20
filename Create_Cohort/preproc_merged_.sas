@@ -1685,6 +1685,7 @@ data work._merged_preg_indexed;
     _ref_dt  = coalesce(EXE_SOI_DTD, DT_FIRST_AD + start);
     _stop_dt = coalesce(next_exe_date, DT_FIRST_AD + stop);
     format _ref_dt _stop_dt date9.;
+	drop pregnant; /* drop previous pregnant value */
 run;
 
 /* Step 2: Join each interval row with all pregnancies in work.mat_clean for that BEN_IDT_ANO */
@@ -1801,7 +1802,7 @@ data work.merged_preg_all_lead;
 run;
 
 /* Step 3: Apply all first.BEN_IDT_ANO, i-1 lag, and i+1 lead rules in exact column order */
-data sasdata1.merged_&.;
+data work.merged_&grace.;
     /* Declare wider length for Pregnant & _lag_Pregnant BEFORE SET to avoid truncating Prev_Pregnant */
     length Pregnant _lag_Pregnant $20;
 
