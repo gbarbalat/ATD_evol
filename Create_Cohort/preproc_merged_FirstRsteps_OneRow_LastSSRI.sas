@@ -69,13 +69,18 @@ data work.merged_checks_recode3;
         keep_row = 1;
 
         /* stop at first switch */
-        if (stop - start) > grace_adm or event = 'ATD_' or event = 'SWI_' then do; /* + &grace */
+        if (stop - start) > grace_adm then do; 
             calc_stop = start; 
             stop_found = 1;
+			keep_row = 0;
         end;
+		else if event = 'ATD_' or event = 'SWI_' then do;
+			calc_stop = stop;
+			stop_found = 1;
         else if last.ben_idt_ano then do;
             calc_stop = start;
             stop_found = 1;
+			keep_row = 0;
         end;
     end;
     else keep_row = 0;
