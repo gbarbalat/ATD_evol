@@ -73,6 +73,7 @@ data work.merged_checks_recode3;
             calc_stop = start; 
             stop_found = 1;
 			keep_row = 0;
+			call missing(psy_meds, event);
         end;
 		else if event = 'ATD_' or event = 'SWI_' then do;
 			calc_stop = stop;
