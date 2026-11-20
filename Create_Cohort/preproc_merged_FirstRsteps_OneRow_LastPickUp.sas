@@ -70,10 +70,14 @@ data work.merged_checks_recode3;
         if (stop - start) > grace_adm then do; /* &grace  */
             calc_stop = start ; 
             stop_found = 1;
+	        keep_row = 0;
+
         end;
         else if last.ben_idt_ano then do;
             calc_stop = start;
             stop_found = 1;
+	        keep_row = 0;
+
         end;
     end;
     else keep_row = 0;
