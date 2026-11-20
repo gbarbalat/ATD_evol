@@ -141,7 +141,25 @@ proc sort data=work.merged_checks_recode4; by ben_idt_ano; run;
 proc sort data=work.merged_checks_recode5; by ben_idt_ano; run;
 proc sort data=work.psy_concat; by ben_idt_ano; run;
 
-data work.merged_checks_recode6_LastPU_&grace.;
+data sasdata1.merged_checks_recode6_LastPU_&grace.;
     merge work.merged_checks_recode4 work.merged_checks_recode5 work.psy_concat;
     by ben_idt_ano;
+run;
+
+data sasdata1.merged_checks_recode6_LastPU_&grace.;
+    retain 
+        ben_idt_ano 
+        PHA_ATC_LIB 
+        tps_: 
+        psy_: 
+        Prev_Psy_Adm
+        season_year region BEN_RES_DPT FDEP20_quint P20_POP Nb_GP Nb_Psych 
+        DT_FIRST_AD /* First_Prescriber */
+        BEN_AMA_COD Pregnant BEN_DCD_DTE MAX_TRT_DTD
+        RIP_0_Length RIP_2_Length MCO_Length SSR_Length HAD_Length
+        HasATMPInv HasAAH HasC2S HasALDPsy HasALDNonPsy
+        CumulAnx CumulGP CumulOtherMed CumulNonMed CumulPsych CumulOtherMeds 
+        start PSP_SPE_COD calc_stop event psy_meds
+    ;
+    set sasdata1.merged_checks_recode6_LastPU_&grace.;
 run;
