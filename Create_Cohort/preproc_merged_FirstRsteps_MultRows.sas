@@ -1,12 +1,12 @@
 /* Step 1: Ensure sasdata1.merged_45 is sorted by BEN_IDT_ANO and start */
-proc sort data=sasdata1.merged_45 out=work._m45_sorted;
+proc sort data=work.merged_&grace. out=work._m&grace._sorted;
     by BEN_IDT_ANO start;
 run;
 
 /* Step 2: Build lead(event) and lead(psy_meds) = values on row i+1 within each BEN_IDT_ANO */
-data work._m45_lead;
-    merge work._m45_sorted
-          work._m45_sorted (firstobs=2 
+data work._m&grace._lead;
+    merge work._m&grace._sorted
+          work._m&grace._sorted (firstobs=2 
                             keep=BEN_IDT_ANO event psy_meds 
                             rename=(BEN_IDT_ANO=_next_id 
                                     event=_next_event 
@@ -26,7 +26,7 @@ data work._m45_lead;
 run;
 
 /* Step 3: Apply all first.BEN_IDT_ANO, i-1 lag, and i+1 lead rules in exact column order */
-data sasdata1.merged_45_anal;
+data sasdata1.merged_&.;
     /* Declare wider length for Pregnant & _lag_Pregnant BEFORE SET to avoid truncating Prev_Pregnant */
     length Pregnant _lag_Pregnant $20;
 
