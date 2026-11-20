@@ -1939,7 +1939,7 @@ data sasdata1.merged_&grace.;
         BEN_IDT_ANO
         refill_nb
         season_year region BEN_RES_DPT FDEP20_quint P20_POP Nb_GP Nb_Psych
-        PSY_: TPS_: MAX_TRT_DTD BEN_DCD_DTE BEN_AMA_COD DT_FIRST_AD PHA_ATC_LIB
+        PSY_: TPS_: Prev_Psy_Adm MAX_TRT_DTD BEN_DCD_DTE BEN_AMA_COD DT_FIRST_AD PHA_ATC_LIB
         RIP_0_Length RIP_2_Length MCO_Length HAD_Length SSR_Length
         Pregnant
         HasATMPInv HasAAH HasC2S HasALDPsy HasALDNonPsy
