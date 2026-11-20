@@ -32,7 +32,7 @@ data work.merged_checks_recode2;
     length_hosp = max(
         coalesce(MCO_Length, 0), 
         coalesce(SSR_Length, 0), 
-        coalesce(HAD_Length, 0), 
+        /*coalesce(HAD_Length, 0), */
         coalesce(RIP_0_Length, 0)
     );
     
@@ -44,7 +44,7 @@ data work.merged_checks_recode2;
     /* Existing logic for the last row per patient */
     if last.BEN_IDT_ANO then do;
         /* Correct SAS syntax for finding the minimum across columns */
-        next_exe_date = min(BEN_DCD_DTE, DT_FIRST_AD + 365);
+        next_exe_date = min(BEN_DCD_DTE, MAX_TRT_DTD, DT_FIRST_AD + 365);
         stop = next_exe_date - DT_FIRST_AD;
     end;
 run;
@@ -74,7 +74,7 @@ data work.merged_checks_recode3;
             stop_found = 1;
         end;
         else if last.ben_idt_ano then do;
-            calc_stop = stop;
+            calc_stop = start;
             stop_found = 1;
         end;
     end;
@@ -111,7 +111,7 @@ data work.merged_checks_recode5;
     
     if first.ben_idt_ano;
     
-    keep ben_idt_ano calc_stop event;
+    keep ben_idt_ano start calc_stop event;
 run;
 
 
@@ -149,4 +149,21 @@ proc sort data=work.psy_concat; by ben_idt_ano; run;
 data sasdata1.merged_checks_recode6_LastSRI_&grace.;
     merge work.merged_checks_recode4 work.merged_checks_recode5 work.psy_concat;
     by ben_idt_ano;
+run;
+
+data sasdata1.merged_checks_recode6_LastSRI_&grace.;
+    retain 
+	ben_idt_ano PHA_ATC_LIB 
+	PSY_ADD_ALC PSY_ADD_AUT PSY_ADD_CAT PSY_ADD_CNB PSY_ADD_TAB PSY_AUT_IND PSY_CAT_CAT PSY_DME_IND PSY_ENF_IND PSY_PSC_IND PSY_TNH_BIP PSY_TNH_CAT PSY_TNH_DEP PSY_TNH_NEV
+	TPS_ADR_EXC TPS_ADR_INC TPS_ANX_EXC TPS_ANX_INC TPS_CAT_EXC TPS_CAT_INC TPS_HYP_EXC TPS_HYP_INC TPS_NLE_EXC TPS_NLE_INC
+	Prev_Psy_Adm
+	season_year region BEN_RES_DPT FDEP20_quint P20_POP Nb_GP Nb_Psych 
+	DT_FIRST_AD 
+	BEN_AMA_COD Pregnant BEN_DCD_DTE MAX_TRT_DTD
+	RIP_0_Length RIP_2_Length MCO_Length SSR_Length HAD_Length
+	HasATMPInv HasAAH HasC2S HasALDPsy HasALDNonPsy
+    CumulAnx CumulGP CumulOtherMed CumulNonMed CumulPsych CumulOtherMeds
+	start PSP_SPE_COD calc_stop event unique_psy_meds
+    ;
+    set sasdata1.merged_checks_recode6_LastSRI_&grace.;
 run;
