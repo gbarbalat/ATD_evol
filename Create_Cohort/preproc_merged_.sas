@@ -1802,7 +1802,7 @@ data work.merged_preg_all_lead;
 run;
 
 /* Step 3: Apply all first.BEN_IDT_ANO, i-1 lag, and i+1 lead rules in exact column order */
-data work.merged_&grace.;
+data sasdata1.merged_&grace.;
     /* Declare wider length for Pregnant & _lag_Pregnant BEFORE SET to avoid truncating Prev_Pregnant */
     length Pregnant _lag_Pregnant $20;
 
