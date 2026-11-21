@@ -1,18 +1,46 @@
 library(dplyr)
 library(tidyr)
 
-# Define variable groups
-baseline_vars  <- c("BEN_RES_DPT", "FDEP20_quint", "Pregnant")
-cumul_vars     <- c("CumulAnx", "CumulGP", "CumulOtherMed", "CumulNonMed", "CumulPsych", "CumulOtherMeds")
-state_tdc_vars <- c("psy_meds") # add any non-Cumul TDCs here
-month_len      <- 30
-n_months       <- 12
+# -------------------------------------------------------------------------
+# 0. Configuration: Define variable groups, priority hierarchies & time grid
+# -------------------------------------------------------------------------
+baseline_vars <- c("BEN_RES_DPT", "FDEP20_quint", "Pregnant")
 
-# 1. Sort longitudinal table
+# Partition TDCs by aggregation rule (leave any unused vector as character(0))
+tdc_cumul_vars    <- c("CumulAnx", "CumulGP", "CumulOtherMed", "CumulNonMed", "CumulPsych", "CumulOtherMeds")
+tdc_first_vars    <- c()               # e.g., c("entry_severity") -> earliest value in month m
+tdc_last_vars     <- c()               # e.g., c("latest_dose")    -> latest value in month m
+tdc_priority_vars <- c("psy_meds")     # e.g., c("psy_meds", "care_setting") -> highest-priority value in month m
+
+# Define ordered priority levels (highest priority first) for each variable in tdc_priority_vars
+priority_levels <- list(
+  psy_meds = c(1, 0) # Example: 1 overrides 0 (or e.g. c("Hospital", "Specialist", "GP", "None"))
+)
+
+all_locf_tdc_vars <- c(tdc_first_vars, tdc_last_vars, tdc_priority_vars)
+all_tdc_vars      <- c(tdc_cumul_vars, all_locf_tdc_vars)
+
+month_len <- 30
+n_months  <- 12
+
+# Helper: pick the highest-priority non-NA value in x according to ordered vector `levels`
+pick_priority <- function(x, levels) {
+  x_clean <- x[!is.na(x)]
+  if (length(x_clean) == 0L) return(x[1]) # preserves typed NA
+  ranks <- match(x_clean, levels)
+  if (all(is.na(ranks))) return(x_clean[1])
+  x_clean[which.min(ranks)]
+}
+
+# -------------------------------------------------------------------------
+# 1. Sort longitudinal table (use .data$stop to avoid base::stop collision)
+# -------------------------------------------------------------------------
 long_sorted <- df %>%
   arrange(BEN_IDT_ANO, .data$start, .data$stop)
 
+# -------------------------------------------------------------------------
 # 2. Extract M0 (baseline) and subject-level terminal time/event
+# -------------------------------------------------------------------------
 subject_summary <- long_sorted %>%
   group_by(BEN_IDT_ANO) %>%
   summarise(
@@ -34,21 +62,27 @@ subject_summary <- long_sorted %>%
     )
   )
 
-# 3A. Aggregate TDCs within each month m = 1..12
+# -------------------------------------------------------------------------
+# 3A. Aggregate TDCs within each month m = 1..12 by rule type
+# -------------------------------------------------------------------------
 monthly_tdc <- long_sorted %>%
   mutate(m = as.integer(floor(.data$start / month_len)) + 1L) %>%
   filter(m >= 1L, m <= n_months) %>%
   group_by(BEN_IDT_ANO, m) %>%
   summarise(
-    # Sum utilization/count variables within the month
-    across(all_of(cumul_vars), ~ sum(.x, na.rm = TRUE)),
-    # For binary/state TDCs: take max (any occurrence in month) or first() (state entering month)
-    across(all_of(state_tdc_vars), ~ max(.x, na.rm = TRUE)),
+    across(all_of(tdc_cumul_vars), ~ sum(.x, na.rm = TRUE)),
+    across(all_of(tdc_first_vars), first),
+    across(all_of(tdc_last_vars),  last),
+    across(
+      all_of(tdc_priority_vars),
+      ~ pick_priority(.x, priority_levels[[cur_column()]])
+    ),
     .groups = "drop"
   )
 
-# 3B. Determine dominant exposure A_m (PSP_SPE_COD with longest covered days inside [30*(m-1), 30*m))
-#     (Alternative: replace 3B with `summarise(A = last(PSP_SPE_COD))` or a specialist-priority rule)
+# -------------------------------------------------------------------------
+# 3B. Determine dominant exposure A_m (longest covered days in [30*(m-1), 30*m))
+# -------------------------------------------------------------------------
 monthly_exp <- long_sorted %>%
   crossing(m = 1:n_months) %>%
   mutate(
@@ -63,31 +97,32 @@ monthly_exp <- long_sorted %>%
     last_start = max(.data$start, na.rm = TRUE),
     .groups    = "drop_last"
   ) %>%
-  # Pick PSP_SPE_COD with most covered days in month m (tie-break by most recent start)
   arrange(desc(tot_days), desc(last_start), .by_group = TRUE) %>%
   slice_head(n = 1) %>%
   ungroup() %>%
   select(BEN_IDT_ANO, m, A = PSP_SPE_COD)
 
-# 4. Assemble full 1..12 monthly grid, apply type-specific LOCF / zero-fill, and enforce Y_m
+# -------------------------------------------------------------------------
+# 4. Assemble full 1..12 grid, apply LOCF / zero-fill, and enforce Y_m rules
+# -------------------------------------------------------------------------
 wide_ltmle_df <- subject_summary %>%
   crossing(m = 1:n_months) %>%
   left_join(monthly_tdc, by = c("BEN_IDT_ANO", "m")) %>%
   left_join(monthly_exp, by = c("BEN_IDT_ANO", "m")) %>%
   group_by(BEN_IDT_ANO) %>%
   arrange(BEN_IDT_ANO, m) %>%
-  # Carry forward clinical state TDCs and active exposure A across quiet months
-  fill(all_of(state_tdc_vars), A, .direction = "down") %>%
+  # Carry forward first/last/priority TDCs and active exposure A across quiet months
+  fill(all_of(all_locf_tdc_vars), A, .direction = "down") %>%
   ungroup() %>%
   mutate(
     # Months with no visits have 0 utilization counts (do NOT carry forward Cumul* sums)
-    across(all_of(cumul_vars), ~ replace_na(.x, 0)),
+    across(all_of(tdc_cumul_vars), ~ replace_na(.x, 0)),
     is_at_risk = case_when(
       final_event > 0  ~ m <= event_month,
       final_event == 0 ~ m <= cens_month
     ),
     # Blank out L_m and A_m after terminal event or censoring
-    across(all_of(c(cumul_vars, state_tdc_vars)), ~ if_else(is_at_risk, .x, NA)),
+    across(all_of(all_tdc_vars), ~ if_else(is_at_risk, .x, NA)),
     A = if_else(is_at_risk, A, NA),
     # Cumulative absorbing outcome Y_m
     Y = case_when(
@@ -97,11 +132,14 @@ wide_ltmle_df <- subject_summary %>%
       TRUE                               ~ NA_integer_
     )
   ) %>%
-  select(BEN_IDT_ANO, all_of(baseline_vars), m, all_of(cumul_vars), all_of(state_tdc_vars), A, Y) %>%
+  select(BEN_IDT_ANO, all_of(baseline_vars), m, all_of(all_tdc_vars), A, Y) %>%
+  # -----------------------------------------------------------------------
+  # 5. Pivot wider in strict temporal block order: M1 -> M2 -> ... -> M12
+  # -----------------------------------------------------------------------
   pivot_wider(
     id_cols     = c(BEN_IDT_ANO, all_of(baseline_vars)),
     names_from  = m,
-    values_from = c(all_of(cumul_vars), all_of(state_tdc_vars), A, Y),
+    values_from = c(all_of(all_tdc_vars), A, Y),
     names_glue  = "{.value}_{m}",
     names_vary  = "slowest"
   )
