@@ -82,5 +82,5 @@ For each participant and month $m \in \{1, \dots, 12\}$:
 | **Right-censored** ($E_{\text{end}} = 0$) | $m > k_{\text{cens}}$ | `NA` (censored) | `NA` |
 
 ### Step 5: Pivot to Wide Block Format
-Reshape to one row per `BEN_IDT_ANO` with columns ordered strictly by causal block:
+Reshape to one row per `BEN_IDT_ANO` with columns ordered strictly by causal block:  
 `BEN_IDT_ANO`, `[Baseline_Vars]`, `[TDC_1, A_1, Y_1]`, `[TDC_2, A_2, Y_2]`, ..., `[TDC_12, A_12, Y_12]`.
