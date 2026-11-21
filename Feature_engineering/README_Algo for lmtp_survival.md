@@ -1,6 +1,6 @@
 # Longitudinal-to-Wide Discrete-Time Transformation ($M_0 \rightarrow M_{12}$)
 
-This document specifies the algorithm and R implementation to transform a multi-row longitudinal healthcare dataset (e.g., French SNDS antidepressant trajectories) into a **one-row-per-participant wide discrete-time dataset** suitable for **Longitudinal Targeted Maximum Likelihood Estimation (`ltmle`)**, **sequential G-computation**, or **pooled competing-risks modeling**.
+This document specifies the algorithm and R implementation to transform a multi-row longitudinal healthcare dataset (e.g., French SNDS antidepressant trajectories) into a **one-row-per-participant wide discrete-time dataset** suitable for **Longitudinal Modified Treatment Policy (`lmtp`)**, **sequential G-computation**, or **pooled competing-risks modeling**.
 
 ---
 
