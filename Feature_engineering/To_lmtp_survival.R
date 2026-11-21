@@ -4,13 +4,13 @@ library(tidyr)
 # -------------------------------------------------------------------------
 # 0. Configuration: Define variable groups, priority hierarchies & time grid
 # -------------------------------------------------------------------------
-baseline_vars <- c("BEN_RES_DPT", "FDEP20_quint", "Pregnant")
+baseline_vars <- c("BEN_RES_DPT", "FDEP20_quint")
 
 # Partition TDCs by aggregation rule (leave any unused vector as character(0))
 tdc_cumul_vars    <- c("CumulAnx", "CumulGP", "CumulOtherMed", "CumulNonMed", "CumulPsych", "CumulOtherMeds")
-tdc_first_vars    <- c()               # e.g., c("entry_severity") -> earliest value in month m
-tdc_last_vars     <- c()               # e.g., c("latest_dose")    -> latest value in month m
-tdc_priority_vars <- c("psy_meds")     # e.g., c("psy_meds", "care_setting") -> highest-priority value in month m
+tdc_first_vars    <- c()               # -> earliest value in month m
+tdc_last_vars     <- c()               # -> latest value in month m
+tdc_priority_vars <- c("Pregnant")     # -> highest-priority value in month m
 
 # Define ordered priority levels (highest priority first) for each variable in tdc_priority_vars
 priority_levels <- list(
