@@ -77,7 +77,7 @@ data work.merged_checks_recode3;
         else if last.ben_idt_ano then do;
             calc_stop = stop;
             stop_found = 1;
-			keep_row = 0;
+			keep_row = 1;
         end;
     end;
     else keep_row = 0;
