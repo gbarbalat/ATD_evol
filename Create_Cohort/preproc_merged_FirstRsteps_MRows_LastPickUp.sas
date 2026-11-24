@@ -74,6 +74,7 @@ data work.merged_checks_recode3;
 			/* Stop date is the start of this record */
 			calc_stop = start;
 			/* stop_found remains 1, ensuring all subsequent rows go to the 'else keep_row=0' block */
+			call missing(event, psy_meds);
 		end;
 		else do;
 			/* Gap is acceptable, keep row, but keep searching in subsequent rows */
@@ -90,6 +91,7 @@ data work.merged_checks_recode3;
             calc_stop = start; 
             stop_found = 1;
 			keep_row = 0;
+			call missing(event, psy_meds);
 		end;		
         else if last.ben_idt_ano then do;
             calc_stop = stop;
@@ -106,7 +108,7 @@ data sasdata1.merged_Mult_LastPU_&grace.;
     
     set work.merged_checks_recode3 (where=(keep_row=1));
 
-    if stop_found ne 0 then call missing(event, psy_meds); /* in case stop_found in the first row  */
+    /* if stop_found ne 0 then call missing(event, psy_meds);  in case stop_found in the first row  */
 
     retain 
         ben_idt_ano PHA_ATC_LIB 
