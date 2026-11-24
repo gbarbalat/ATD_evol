@@ -61,33 +61,71 @@ data work.merged_checks_recode3;
     set work.merged_checks_recode2;
     by ben_idt_ano start;
     
-    retain stop_found;
-    if first.ben_idt_ano then stop_found = 0;
-    
-    /* Sequential evaluation for stop */
-    if stop_found = 0 then do;
+   retain stop_found;
+	length calc_stop 8; /* Explicitly define length to avoid notes */
+	
+    if first.ben_idt_ano then do;
+		/* Initialize retention flag to stop searching by default */
+		stop_found = 1; 
+		calc_stop = .; /* Initialize to missing */
+		
+		/* Condition 1: If gap is too big immediately on Row 1 */
+		if (stop - start) > grace_adm then do;
+			keep_row = 1;
+			calc_stop = start;
+			call missing(event, psy_meds);
+			/* stop_found remains 1, subsequent rows rejected */
+		end;
+		
+		/* Condition 2: Gap is OK, check event type */
+		/* The colon : modifier performs a prefix match (starts with) */
+		else if (event =: 'SWI_') then do;
+			keep_row = 1;
+			/* Stop searching because event is SWI_ */
+			/* stop_found remains 1, subsequent rows rejected */
+		end;
+		
+		/* Condition 3: Gap is OK, and event is NOT SWI_ */
+		else do;
+			keep_row = 1;
+			/* Set stop_found = 0 to KEEP SEARCHING in subsequent rows */
+			stop_found = 0;
+		end;
+    end;
+	
+    /* Sequential evaluation for stop if NOT the first row AND still looking */
+    else if stop_found = 0 then do;
         keep_row = 1;
         if (stop - start) > grace_adm then do;
-            calc_stop = start ; 
+			calc_stop = stop;
+            calc_stop = start; 
             stop_found = 1;
-            call missing(psy_meds, event);
-        end;
-        else if event='SWI_' then do;
-            calc_stop = stop ; 
-            stop_found = 1;
-            
-        end;
+			keep_row = 0;
+			call missing(event, psy_meds);
+		end;	
+		else if (event =: 'SWI_') then do;
+			keep_row = 1;	
+			stop_found = 1;
+			/* Stop searching because event is SWI_ */
+			/* stop_found remains 1, subsequent rows rejected */
+		end;
         else if last.ben_idt_ano then do;
-            calc_stop = start;
+            calc_stop = stop;
             stop_found = 1;
-
+			keep_row = 1;
         end;
     end;
+	
+    /* Catch-all for rows after stop_found = 1 */
     else keep_row = 0;
 run;
 
 data sasdata1.merged_Mult_Lastatd_&grace.;
-    /* RETAIN must come BEFORE SET to enforce column order */
+    
+    set work.merged_checks_recode3 (where=(keep_row=1));
+
+    /* if stop_found ne 0 then call missing(event, psy_meds); in case stop_found in the first row  */
+
     retain 
         ben_idt_ano PHA_ATC_LIB 
         PSY_ADD_ALC PSY_ADD_AUT PSY_ADD_CAT PSY_ADD_CNB PSY_ADD_TAB PSY_AUT_IND PSY_CAT_CAT PSY_DME_IND PSY_ENF_IND PSY_PSC_IND PSY_TNH_BIP PSY_TNH_CAT PSY_TNH_DEP PSY_TNH_NEV
@@ -100,8 +138,4 @@ data sasdata1.merged_Mult_Lastatd_&grace.;
         HasATMPInv HasAAH HasC2S HasALDPsy HasALDNonPsy
         CumulAnx CumulGP CumulOtherMed CumulNonMed CumulPsych CumulOtherMeds
         start PSP_SPE_COD stop calc_stop event psy_meds;
-
-    set work.merged_checks_recode3 (where=(keep_row=1));
-
-    if stop_found = 1 and event in ("SSRI", "ATD_") then call missing(psy_meds, event);
 run;
