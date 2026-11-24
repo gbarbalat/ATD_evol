@@ -73,7 +73,7 @@ data work.merged_checks_recode3;
 			call missing(psy_meds, event);
 		end;
         else if last.ben_idt_ano then do;
-            calc_stop = start;
+            calc_stop = stop;
             stop_found = 1;
 
         end;
