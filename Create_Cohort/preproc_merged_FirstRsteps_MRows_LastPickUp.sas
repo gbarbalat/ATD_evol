@@ -64,17 +64,30 @@ data work.merged_checks_recode3;
     retain stop_found;
 	
     if first.ben_idt_ano then do;
-		stop_found = 0;
-		keep_row = 1;
-		calc_stop = start;
-    /* Do not evaluate stop on the very first row */
+		/* Initialize retention flag */
+		stop_found = 1; 
+		
+		/* Condition: If gap is too big immediately on Row 1 */
+		if (stop - start) > grace_adm then do;
+			/* Keep this row, but stop searching */
+			keep_row = 1;
+			/* Stop date is the start of this record */
+			calc_stop = start;
+			/* stop_found remains 1, ensuring all subsequent rows go to the 'else keep_row=0' block */
+		end;
+		else do;
+			/* Gap is acceptable, keep row, but keep searching in subsequent rows */
+			keep_row = 1;
+			/* no calc_stop */
+			stop_found = 0;
+		end;
     end;
 	
-    /* Sequential evaluation for stop if NOT the first row */
+    /* Sequential evaluation for stop if NOT the first row AND still looking */
     else if stop_found = 0 then do;
         keep_row = 1;
-        if (stop - start) > grace_adm then do; /* &grace  */
-            calc_stop = start ; 
+        if (stop - start) > grace_adm then do;
+            calc_stop = start; 
             stop_found = 1;
 			keep_row = 0;
 		end;		
@@ -85,6 +98,7 @@ data work.merged_checks_recode3;
         end;
     end;
 	
+    /* Catch-all for rows after stop_found = 1 */
     else keep_row = 0;
 run;
 
@@ -92,7 +106,7 @@ data sasdata1.merged_Mult_LastPU_&grace.;
     
     set work.merged_checks_recode3 (where=(keep_row=1));
 
-    /* if stop_found ne 0 then call missing(psy_meds); */
+    if stop_found ne 0 then call missing(event, psy_meds); /* in case stop_found in the first row  */
 
     retain 
         ben_idt_ano PHA_ATC_LIB 
