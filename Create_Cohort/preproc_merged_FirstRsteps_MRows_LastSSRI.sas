@@ -62,27 +62,35 @@ data work.merged_checks_recode3;
     by ben_idt_ano start;
     
     retain stop_found;
-    if first.ben_idt_ano then stop_found = 0;
-    
-    /* Sequential evaluation for stop */
-    if stop_found = 0 then do;
+
+	if first.ben_idt_ano then do;
+		stop_found = 0;
+		keep_row = 1;
+		calc_stop = start;
+    /* Do not evaluate stop on the very first row */
+    end;
+	
+    /* Sequential evaluation for stop if NOT the first row */
+    else if stop_found = 0 then do;
         keep_row = 1;
-        if (stop - start) > grace_adm then do;
+        if (stop - start) > grace_adm then do; /* &grace  */
             calc_stop = start ; 
             stop_found = 1;
+			keep_row = 0;
             call missing(psy_meds, event);
-        end;
+		end;	
         else if event='ATD_' or event='SWI_' then do;
             calc_stop = stop ; 
             stop_found = 1;
-            
+            keep_row = 1;
         end;
         else if last.ben_idt_ano then do;
-            calc_stop = start;
+            calc_stop = stop;
             stop_found = 1;
-
+			keep_row = 1;
         end;
     end;
+	
     else keep_row = 0;
 run;
 
